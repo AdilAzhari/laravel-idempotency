@@ -16,6 +16,9 @@ final readonly class IdempotencyManager
         private IdempotencyStore $store,
     ) {}
 
+    /**
+     * @param Closure(Request): Response $next
+     */
     public function handle(
         Request $request,
         Closure $next
@@ -23,7 +26,7 @@ final readonly class IdempotencyManager
 
         $key = $request->header('Idempotency-Key');
 
-        if ($key === null) {
+        if (! is_string($key)) {
             return $next($request);
         }
 
@@ -42,9 +45,9 @@ final readonly class IdempotencyManager
         $this->store->put(
             $key,
             new StoredResponse(
-                $response->status(),
+                $response->getStatusCode(),
                 $response->headers->all(),
-                $response->getContent()
+                $response->getContent() ?: ''
             )
         );
 
