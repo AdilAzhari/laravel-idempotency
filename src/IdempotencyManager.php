@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AdilAzhari\LaravelIdempotency;
 
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\ValueObjects\StoredResponse;
 use Closure;
 use DateTimeImmutable;
@@ -15,6 +16,7 @@ final readonly class IdempotencyManager
 {
     public function __construct(
         private IdempotencyStore $store,
+        private RequestFingerprinter $fingerprinter,
     ) {}
 
     /**
@@ -42,10 +44,12 @@ final readonly class IdempotencyManager
 
         $response = $next($request);
 
+        $fingerprint = $this->fingerprinter->fingerprint($request);
+
         $this->store->put(
             new StoredResponse(
                 key: $key,
-                fingerprint: '',
+                fingerprint: $fingerprint,
                 status: $response->getStatusCode(),
                 headers: $response->headers->all(),
                 body: $response->getContent() ?: '',
