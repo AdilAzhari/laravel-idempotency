@@ -11,7 +11,8 @@ interface IdempotencyStore
     public function get(string $key): ?StoredResponse;
 
     public function put(
-        string $key,
         StoredResponse $response
     ): void;
+
+    public function delete(string $key): void;
 }

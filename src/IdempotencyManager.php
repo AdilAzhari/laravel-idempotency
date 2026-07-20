@@ -7,6 +7,7 @@ namespace AdilAzhari\LaravelIdempotency;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
 use AdilAzhari\LaravelIdempotency\ValueObjects\StoredResponse;
 use Closure;
+use DateTimeImmutable;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -23,7 +24,6 @@ final readonly class IdempotencyManager
         Request $request,
         Closure $next
     ): Response {
-
         $key = $request->header('Idempotency-Key');
 
         if (! is_string($key)) {
@@ -43,11 +43,14 @@ final readonly class IdempotencyManager
         $response = $next($request);
 
         $this->store->put(
-            $key,
             new StoredResponse(
-                $response->getStatusCode(),
-                $response->headers->all(),
-                $response->getContent() ?: ''
+                key: $key,
+                fingerprint: '',
+                status: $response->getStatusCode(),
+                headers: $response->headers->all(),
+                body: $response->getContent() ?: '',
+                createdAt: new DateTimeImmutable,
+                expiresAt: new DateTimeImmutable('+24 hours'),
             )
         );
 
