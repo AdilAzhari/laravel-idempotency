@@ -59,6 +59,7 @@
             "rector --dry-run"
         ],
         "test:unit": "pest --parallel --coverage --exactly=100",
+        "test:refactor": "rector --dry-run",
         "test:types": "phpstan",
         "test": [
             "@test:lint",
