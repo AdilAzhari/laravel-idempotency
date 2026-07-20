@@ -17,7 +17,7 @@ final readonly class IdempotencyManager
     ) {}
 
     /**
-     * @param Closure(Request): Response $next
+     * @param  Closure(Request): Response  $next
      */
     public function handle(
         Request $request,
