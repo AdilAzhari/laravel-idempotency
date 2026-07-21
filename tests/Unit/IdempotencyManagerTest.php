@@ -1,32 +1,58 @@
 <?php
 
 declare(strict_types=1);
+
+use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyConflictException;
 use AdilAzhari\LaravelIdempotency\IdempotencyManager;
 use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
+use AdilAzhari\LaravelIdempotency\Tests\Fakes\InMemoryIdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Tests\Fakes\InMemoryIdempotencyStore;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-it('passes request when idempotency key is missing', function (): void {
+it('throws exception when same key is used with different request', function (): void {
+
     $manager = new IdempotencyManager(
         new InMemoryIdempotencyStore,
         new Sha256RequestFingerprinter,
+        new InMemoryIdempotencyLock,
     );
 
-    $request = Request::create('/payments', 'POST');
-
-    $called = false;
-
-    $response = $manager->handle(
-        $request,
-        function () use (&$called): Response {
-            $called = true;
-
-            return new Response('created', 201);
-        }
+    $firstRequest = Request::create(
+        '/payments',
+        'POST',
+        [
+            'amount' => 100,
+        ]
     );
 
-    expect($called)->toBeTrue()
-        ->and($response->getStatusCode())
-        ->toBe(201);
+    $firstRequest->headers->set(
+        'Idempotency-Key',
+        'payment-123'
+    );
+
+    $manager->handle(
+        $firstRequest,
+        fn (): Response => new Response('success')
+    );
+
+    $secondRequest = Request::create(
+        '/payments',
+        'POST',
+        [
+            'amount' => 500,
+        ]
+    );
+
+    $secondRequest->headers->set(
+        'Idempotency-Key',
+        'payment-123'
+    );
+
+    expect(fn (): Response => $manager->handle(
+        $secondRequest,
+        fn (): Response => new Response('success')
+    ))
+        ->toThrow(IdempotencyConflictException::class);
+
 });

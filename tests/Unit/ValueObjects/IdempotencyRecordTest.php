@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
-it('can create a stored response or an idempotency record', function (): void {
+
+it('can create an idempotency record', function (): void {
     $response = new IdempotencyRecord(
         key: 'test-key',
         fingerprint: 'fingerprint',

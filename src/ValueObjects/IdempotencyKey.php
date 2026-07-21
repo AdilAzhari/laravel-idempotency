@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace AdilAzhari\LaravelIdempotency\ValueObjects;
 
 use InvalidArgumentException;
+use Stringable;
 
-final readonly class IdempotencyKey implements \Stringable
+final readonly class IdempotencyKey implements Stringable
 {
     public function __construct(
         public string $value,
