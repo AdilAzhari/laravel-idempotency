@@ -9,6 +9,8 @@ use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Locks\CacheIdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
 use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\ServiceProvider;
 
 final class LaravelIdempotencyServiceProvider extends ServiceProvider
@@ -27,10 +29,21 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
 
         $this->app->bind(
             IdempotencyLock::class,
-            fn ($app): IdempotencyLock => new CacheIdempotencyLock(
-                $app->make(LockProvider::class),
-                config('idempotency.lock.seconds')
-            )
+            static function (Container $app): IdempotencyLock {
+                /** @var LockProvider $lockProvider */
+                $lockProvider = $app->make(LockProvider::class);
+
+                /** @var ConfigRepository $config */
+                $config = $app->make(ConfigRepository::class);
+
+                /** @var int $lockSeconds */
+                $lockSeconds = $config->get('idempotency.lock.seconds', 10);
+
+                return new CacheIdempotencyLock(
+                    $lockProvider,
+                    $lockSeconds,
+                );
+            }
         );
 
         $this->app->singleton(
