@@ -1,4 +1,4 @@
- {
+{
     "name": "adilazhari/laravel-idempotency",
     "description": "A Laravel package providing idempotent request handling.",
     "keywords": [
@@ -21,6 +21,7 @@
     "require-dev": {
         "laravel/framework": "^13.20",
         "laravel/pint": "^1.29.3",
+        "orchestra/testbench": "^11.1",
         "pestphp/pest": "^5.0.0",
         "pestphp/pest-plugin-phpstan": "^5.0.0",
         "pestphp/pest-plugin-rector": "^5.0.0",
