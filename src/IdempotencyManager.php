@@ -6,7 +6,7 @@ namespace AdilAzhari\LaravelIdempotency;
 
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
-use AdilAzhari\LaravelIdempotency\ValueObjects\StoredResponse;
+use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
 use Closure;
 use DateTimeImmutable;
 use Illuminate\Http\Request;
@@ -32,9 +32,9 @@ final readonly class IdempotencyManager
             return $next($request);
         }
 
-        $stored = $this->store->get($key);
+        $stored = $this->store->find($key);
 
-        if ($stored instanceof StoredResponse) {
+        if ($stored instanceof IdempotencyRecord) {
             return response(
                 $stored->body,
                 $stored->status,
@@ -42,12 +42,12 @@ final readonly class IdempotencyManager
             );
         }
 
-        $response = $next($request);
-
         $fingerprint = $this->fingerprinter->fingerprint($request);
 
-        $this->store->put(
-            new StoredResponse(
+        $response = $next($request);
+
+        $this->store->save(
+            new IdempotencyRecord(
                 key: $key,
                 fingerprint: $fingerprint,
                 status: $response->getStatusCode(),

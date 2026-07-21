@@ -5,27 +5,27 @@ declare(strict_types=1);
 namespace AdilAzhari\LaravelIdempotency\Tests\Fakes;
 
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
-use AdilAzhari\LaravelIdempotency\ValueObjects\StoredResponse;
+use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
 
 final class InMemoryIdempotencyStore implements IdempotencyStore
 {
     /**
-     * @var array<string, StoredResponse>
+     * @var array<string, IdempotencyRecord>
      */
-    public array $responses = [];
+    private array $records = [];
 
-    public function get(string $key): ?StoredResponse
+    public function find(string $key): ?IdempotencyRecord
     {
-        return $this->responses[$key] ?? null;
+        return $this->records[$key] ?? null;
     }
 
-    public function put(StoredResponse $response): void
+    public function save(IdempotencyRecord $record): void
     {
-        $this->responses[$response->key] = $response;
+        $this->records[$record->key] = $record;
     }
 
-    public function delete(string $key): void
+    public function remove(string $key): void
     {
-        unset($this->responses[$key]);
+        unset($this->records[$key]);
     }
 }

@@ -6,7 +6,7 @@ namespace AdilAzhari\LaravelIdempotency\ValueObjects;
 
 use DateTimeImmutable;
 
-final readonly class StoredResponse
+final readonly class IdempotencyRecord
 {
     /**
      * @param  array<string, list<string|null>>  $headers

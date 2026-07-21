@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace AdilAzhari\LaravelIdempotency\Contracts;
 
-use AdilAzhari\LaravelIdempotency\ValueObjects\StoredResponse;
+use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
 
 interface IdempotencyStore
 {
-    public function get(string $key): ?StoredResponse;
+    public function find(string $key): ?IdempotencyRecord;
 
-    public function put(
-        StoredResponse $response
+    public function save(
+        IdempotencyRecord $record
     ): void;
 
-    public function delete(string $key): void;
+    public function remove(string $key): void;
 }
