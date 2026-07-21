@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-use AdilAzhari\LaravelIdempotency\ValueObjects\StoredResponse;
-
-it('can create a stored response', function (): void {
-    $response = new StoredResponse(
+use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
+it('can create a stored response or an idempotency record', function (): void {
+    $response = new IdempotencyRecord(
         key: 'test-key',
         fingerprint: 'fingerprint',
         status: 200,
@@ -21,7 +20,7 @@ it('can create a stored response', function (): void {
 
 it('determines if response is expired', function (): void {
 
-    $response = new StoredResponse(
+    $response = new IdempotencyRecord(
         key: 'payment-123',
         fingerprint: 'abc123',
         status: 200,
