@@ -19,12 +19,13 @@ final class InMemoryIdempotencyStore implements IdempotencyStore
         return $this->records[$key] ?? null;
     }
 
-    public function save(IdempotencyRecord $record): void
-    {
+    public function store(
+        IdempotencyRecord $record,
+    ): void {
         $this->records[$record->key] = $record;
     }
 
-    public function remove(string $key): void
+    public function forget(string $key): void
     {
         unset($this->records[$key]);
     }

@@ -10,9 +10,9 @@ interface IdempotencyStore
 {
     public function find(string $key): ?IdempotencyRecord;
 
-    public function save(
+    public function store(
         IdempotencyRecord $record
     ): void;
 
-    public function remove(string $key): void;
+    public function forget(string $key): void;
 }

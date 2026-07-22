@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyKey;
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
 
 it('can create an idempotency record', function (): void {
@@ -34,4 +35,16 @@ it('determines if response is expired', function (): void {
     expect($response->isExpired())
         ->toBeTrue();
 
+});
+
+it('represents a non-empty idempotency key as a string', function (): void {
+    $key = new IdempotencyKey('payment-123');
+
+    expect((string) $key)
+        ->toBe('payment-123');
+});
+
+it('rejects an empty idempotency key', function (): void {
+    expect(fn (): IdempotencyKey => new IdempotencyKey(''))
+        ->toThrow(InvalidArgumentException::class);
 });

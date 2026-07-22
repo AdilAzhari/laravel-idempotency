@@ -8,8 +8,10 @@ use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyConflictException;
+use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyKey;
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
 use Closure;
+use DateInterval;
 use DateTimeImmutable;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -21,6 +23,8 @@ final readonly class IdempotencyManager
         private IdempotencyStore $store,
         private RequestFingerprinter $fingerprinter,
         private IdempotencyLock $lock,
+        private string $header = 'Idempotency-Key',
+        private int $expiration = 86400,
     ) {}
 
     /**
@@ -30,15 +34,17 @@ final readonly class IdempotencyManager
         Request $request,
         Closure $next
     ): Response {
-        $key = $request->header('Idempotency-Key');
+        $key = $request->header($this->header);
 
-        if (! is_string($key)) {
+        if (! is_string($key) || $key === '') {
             return $next($request);
         }
 
+        $idempotencyKey = new IdempotencyKey($key);
+
         $fingerprint = $this->fingerprinter->fingerprint($request);
 
-        if (! $this->lock->acquire($key)) {
+        if (! $this->lock->acquire($idempotencyKey->value)) {
             throw new RuntimeException(
                 'Unable to acquire idempotency lock.'
             );
@@ -51,15 +57,20 @@ final readonly class IdempotencyManager
              * Another request might have completed while
              * this request was waiting.
              */
-            $stored = $this->store->find($key);
+            $stored = $this->store->find($idempotencyKey->value);
+
+            if ($stored?->isExpired()) {
+                $this->store->forget($idempotencyKey->value);
+                $stored = null;
+            }
 
             if ($stored instanceof IdempotencyRecord) {
 
                 if ($stored->fingerprint !== $fingerprint) {
-                    throw IdempotencyConflictException::forKey($key);
+                    throw IdempotencyConflictException::forKey($idempotencyKey->value);
                 }
 
-                return response(
+                return new Response(
                     $stored->body,
                     $stored->status,
                     $stored->headers
@@ -68,23 +79,29 @@ final readonly class IdempotencyManager
 
             $response = $next($request);
 
-            $this->store->save(
-                new IdempotencyRecord(
-                    key: $key,
-                    fingerprint: $fingerprint,
-                    status: $response->getStatusCode(),
-                    headers: $response->headers->all(),
-                    body: $response->getContent() ?: '',
-                    createdAt: new DateTimeImmutable,
-                    expiresAt: new DateTimeImmutable('+24 hours'),
-                )
+            $createdAt = new DateTimeImmutable;
+
+            $record = new IdempotencyRecord(
+                key: $idempotencyKey->value,
+                fingerprint: $fingerprint,
+                status: $response->getStatusCode(),
+                headers: $response->headers->all(),
+                body: $response->getContent() ?: '',
+                createdAt: $createdAt,
+                expiresAt: $createdAt->add(
+                    DateInterval::createFromDateString($this->expiration.' seconds')
+                ),
+            );
+
+            $this->store->store(
+                record: $record,
             );
 
             return $response;
 
         } finally {
 
-            $this->lock->release($key);
+            $this->lock->release($idempotencyKey->value);
 
         }
     }

@@ -8,8 +8,10 @@ use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyLock;
 
 final class InMemoryIdempotencyLock implements IdempotencyLock
 {
+    public bool $released = false;
+
     /**
-     * @var array<string, bool>
+     * @var array<string,bool>
      */
     private array $locks = [];
 
@@ -26,6 +28,8 @@ final class InMemoryIdempotencyLock implements IdempotencyLock
 
     public function release(string $key): void
     {
+        $this->released = true;
+
         unset($this->locks[$key]);
     }
 }
