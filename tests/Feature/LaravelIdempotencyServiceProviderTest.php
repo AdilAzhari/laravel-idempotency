@@ -45,3 +45,27 @@ it('replays an idempotent route response', function (): void {
 
     expect($handled)->toBe(1);
 });
+
+it('uses the configured idempotency header', function (): void {
+    config()->set('idempotency.header', 'X-Idempotency-Key');
+
+    $handled = 0;
+
+    Route::post('/custom-payments', function () use (&$handled): ResponseFactory|Response {
+        $handled++;
+
+        return response((string) $handled, 201);
+    })->middleware(IdempotencyMiddleware::class);
+
+    $headers = ['X-Idempotency-Key' => 'payment-456'];
+
+    $this->post('/custom-payments', ['amount' => 100], $headers)
+        ->assertCreated()
+        ->assertContent('1');
+
+    $this->post('/custom-payments', ['amount' => 100], $headers)
+        ->assertCreated()
+        ->assertContent('1');
+
+    expect($handled)->toBe(1);
+});
