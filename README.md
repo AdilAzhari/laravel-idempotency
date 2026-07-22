@@ -1,38 +1,83 @@
 <p align="center">
     <a href="https://github.com/AdilAzhari/laravel-idempotency/actions">
-        <img src="https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml/badge.svg">
+        <img src="https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml/badge.svg" alt="Tests">
+    </a>
+    <a href="https://packagist.org/packages/adilazhari/laravel-idempotency">
+        <img src="https://img.shields.io/packagist/v/adilazhari/laravel-idempotency" alt="Latest Version">
+    </a>
+    <a href="https://packagist.org/packages/adilazhari/laravel-idempotency">
+        <img src="https://img.shields.io/packagist/dt/adilazhari/laravel-idempotency" alt="Downloads">
+    </a>
+    <a href="LICENSE.md">
+        <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
     </a>
 </p>
 
 # Laravel Idempotency
 
-Laravel Idempotency prevents duplicate execution of requests caused by retries. It is designed for write operations where executing the same request multiple times can create unwanted side effects, such as payments, orders, account updates, and external API calls.
+Laravel Idempotency provides a framework-native way to protect write operations from accidental duplicate execution.
 
-When a client sends an `Idempotency-Key`, the package associates that key with the request details and stores the resulting HTTP response. If the same request is repeated with the same key, the original response is returned without executing the request pipeline again.
+Using an `Idempotency-Key`, the package guarantees that the same logical request is processed only once while safely replaying the original HTTP response to subsequent retries.
 
-If the same key is reused with different request details, the package throws an `IdempotencyConflictException`.
+It is particularly useful for:
 
-## Requirements
+- Payment processing
+- Subscription management
+- Order creation
+- Inventory updates
+- Account changes
+- External API integrations
 
-* PHP 8.5 or later
-* Laravel 13
-* A cache driver that supports atomic locks
+---
 
-For production environments with multiple application instances, use a shared cache backend such as Redis or database cache.
+# Why?
 
-## Supported Laravel Versions
+Retries happen.
 
-| Laravel Version | Package Version |
-| --------------- | --------------- |
-| 13.x            | 0.x             |
+Mobile applications retry requests.
 
-Laravel Idempotency 0.x currently supports Laravel 13.
+Browsers retry requests.
 
-Support for additional Laravel versions may be added in future releases.
+Load balancers retry requests.
 
-## Installation
+Network failures cause clients to send the same request multiple times.
 
-Install the package using Composer:
+Without idempotency, a single retry can accidentally create duplicate:
+
+- payments
+- orders
+- invoices
+- subscriptions
+
+Laravel Idempotency ensures that identical requests execute exactly once.
+
+---
+
+# Features
+
+- HTTP idempotency middleware
+- Atomic request locking
+- Request fingerprinting
+- Automatic response replay
+- Configurable response expiration
+- Pluggable storage implementation
+- Custom fingerprint strategies
+- Laravel-native dependency injection
+- Fully tested
+
+---
+
+# Requirements
+
+- PHP 8.5+
+- Laravel 13
+- Cache driver supporting atomic locks
+
+For distributed deployments, use a shared cache such as Redis or the database cache driver.
+
+---
+
+# Installation
 
 ```bash
 composer require adilazhari/laravel-idempotency
@@ -40,23 +85,17 @@ composer require adilazhari/laravel-idempotency
 
 Laravel automatically discovers the service provider.
 
-To customize the package configuration, publish the configuration file:
+Publish the configuration:
 
 ```bash
 php artisan vendor:publish --tag=idempotency-config
 ```
 
-This will create:
+---
 
-```text
-config/idempotency.php
-```
+# Quick Start
 
-## Usage
-
-Apply the idempotency middleware to any route that requires protection.
-
-Example:
+Protect any endpoint with the middleware.
 
 ```php
 use AdilAzhari\LaravelIdempotency\Http\Middleware\IdempotencyMiddleware;
@@ -66,12 +105,11 @@ Route::post('/payments', CreatePaymentController::class)
     ->middleware(IdempotencyMiddleware::class);
 ```
 
-Clients should provide a unique idempotency key with the request:
+Clients simply send an idempotency key.
 
 ```http
-POST /payments HTTP/1.1
-Content-Type: application/json
-Idempotency-Key: payment-7f1f7b2e
+POST /payments
+Idempotency-Key: payment-123
 
 {
     "amount": 1000,
@@ -79,227 +117,218 @@ Idempotency-Key: payment-7f1f7b2e
 }
 ```
 
-The first request is processed normally. After the response is generated, the package stores the response details.
+The first request executes normally.
 
-A retry with:
+Subsequent identical requests return the previously stored response without executing the controller again.
 
-* the same idempotency key
-* the same HTTP method
-* the same path
-* the same query parameters
-* the same request input
+---
 
-will receive the stored response without executing the endpoint again.
+# How It Works
+
+```
+                Client
+                   │
+                   ▼
+      Idempotency Middleware
+                   │
+     Generate Request Fingerprint
+                   │
+          Acquire Execution Lock
+                   │
+        Existing Stored Response?
+          │                  │
+         Yes                No
+          │                  │
+          ▼                  ▼
+ Replay Stored Response   Execute Controller
+                             │
+                             ▼
+                      Store HTTP Response
+                             │
+                             ▼
+                        Release Lock
+                             │
+                             ▼
+                        Return Response
+```
+
+---
+
+# Request Matching
+
+A request is considered identical when all of the following match:
+
+- Idempotency key
+- HTTP method
+- Request path
+- Query parameters
+- Parsed request body
+
+The default implementation uses `Sha256RequestFingerprinter`.
 
 Example:
 
-```text
-Request 1:
+```http
 POST /payments
-Idempotency-Key: payment-123
 
-Controller executed
-Response stored
-
-
-Request 2:
-POST /payments
-Idempotency-Key: payment-123
-
-Stored response returned
-Controller not executed
+{
+    "amount":1000
+}
 ```
 
-Requests without an idempotency key continue normally.
+and
 
-## Configuration
+```http
+POST /payments
 
-The default configuration:
+{
+    "amount":2000
+}
+```
+
+are treated as different requests, even if they use the same idempotency key.
+
+If the same key is reused for different request data, an `IdempotencyConflictException` is thrown.
+
+---
+
+# Configuration
 
 ```php
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Idempotency Header
-    |--------------------------------------------------------------------------
-    |
-    | The request header used to identify idempotency requests.
-    |
-    */
-
     'header' => 'Idempotency-Key',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Lock Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Controls how long a request execution lock is held.
-    |
-    */
 
     'lock' => [
         'seconds' => 10,
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Response Expiration
-    |--------------------------------------------------------------------------
-    |
-    | The amount of time a stored response can be replayed.
-    |
-    */
 
     'expiration' => 86400,
 
 ];
 ```
 
-### Configuration Options
+| Option | Description |
+|----------|-------------|
+| `header` | Header containing the idempotency key |
+| `lock.seconds` | Maximum lock duration |
+| `expiration` | Lifetime of stored responses |
 
-| Option         | Description                                                     |
-| -------------- | --------------------------------------------------------------- |
-| `header`       | The HTTP header containing the idempotency key                  |
-| `lock.seconds` | Maximum time an in-progress request can hold the execution lock |
-| `expiration`   | How long stored responses remain available                      |
-
-The lock duration should be longer than the expected execution time of protected endpoints.
-
-If the lock expires while the original request is still processing, another request may execute concurrently.
-
-## How Request Matching Works
-
-Laravel Idempotency uses a request fingerprint to determine whether a retry represents the same operation.
-
-The default `Sha256RequestFingerprinter` creates a fingerprint based on:
-
-* HTTP method
-* Request path
-* Query parameters
-* Parsed request input
-
-Example:
-
-```text
-POST /payments
-
-{
-    "amount": 1000
-}
-```
-
-and:
-
-```text
-POST /payments
-
-{
-    "amount": 2000
-}
-```
-
-are considered different requests even when they use the same idempotency key.
-
-## Extending the Package
-
-The package uses contracts so its core behaviour can be replaced.
-
-Available extension points:
-
-### Request Fingerprinting
-
-Replace the default fingerprint implementation:
-
-```php
-RequestFingerprinter
-```
-
-Example use cases:
-
-* Include custom headers
-* Ignore specific fields
-* Use another hashing strategy
+Choose a lock duration that comfortably exceeds the expected execution time of protected endpoints.
 
 ---
 
-### Storage
+# Extending
 
-Replace the response storage implementation:
+Laravel Idempotency is built around contracts, allowing individual components to be replaced.
+
+## Custom Request Fingerprinting
 
 ```php
-IdempotencyStore
+$this->app->bind(
+    RequestFingerprinter::class,
+    CustomFingerprinter::class,
+);
+```
+
+Possible use cases:
+
+- Ignore selected fields
+- Include custom headers
+- Different hashing strategy
+
+---
+
+## Custom Response Storage
+
+```php
+$this->app->bind(
+    IdempotencyStore::class,
+    DatabaseIdempotencyStore::class,
+);
 ```
 
 Possible implementations:
 
-* Redis
-* Database
-* DynamoDB
-* Custom storage service
+- Redis
+- Database
+- DynamoDB
+- External storage service
 
 ---
 
-### Locking
-
-Replace the execution lock implementation:
+## Custom Locking
 
 ```php
-IdempotencyLock
+$this->app->bind(
+    IdempotencyLock::class,
+    RedisIdempotencyLock::class,
+);
 ```
 
 Possible implementations:
 
-* Redis locks
-* Database locks
-* Distributed lock services
+- Redis locks
+- Database locks
+- Distributed lock services
 
-## Architecture Overview
+---
 
-The request lifecycle:
+# Design Principles
 
-```text
-Client
-  |
-  | Idempotency-Key
-  |
-Middleware
-  |
-  |-- Generate request fingerprint
-  |
-  |-- Acquire lock
-  |
-  |-- Check stored response
-  |
-  |-- Execute request if missing
-  |
-  |-- Store response
-  |
-  |-- Release lock
-  |
-Response
-```
+Laravel Idempotency is intentionally built around a small set of principles.
 
-The package ensures that only one request with a specific idempotency key executes at a time.
+- Framework-native integration
+- Explicit contracts
+- Predictable behaviour
+- Simple public API
+- Testability
+- Extensibility
 
-## Testing
+---
 
-Run the complete test suite:
+# Testing
+
+Run the complete test suite.
 
 ```bash
 composer test
 ```
 
-The test suite includes:
+The package includes automated tests covering:
 
-* Response replay behaviour
-* Idempotency conflicts
-* Expired records
-* Lock handling
-* Service provider bindings
-* Middleware integration
+- Response replay
+- Conflict detection
+- Expired responses
+- Lock handling
+- Middleware integration
+- Service provider bindings
+- Configuration
 
-## License
+Current test coverage exceeds **90%**.
 
-Laravel Idempotency is open-source software licensed under the [MIT License](LICENSE.md).
+---
+
+# Roadmap
+
+- ✅ Laravel 13 support
+- ✅ Configurable request fingerprinting
+- ✅ Cache-backed storage
+- ✅ Atomic request locking
+- ⏳ Database storage driver
+- ⏳ Redis storage driver
+- ⏳ Laravel 14 support
+
+---
+
+# Contributing
+
+Contributions, ideas, and bug reports are welcome.
+
+Please open an issue before submitting significant changes so the implementation can be discussed first.
+
+---
+
+# License
+
+Laravel Idempotency is open-source software licensed under the MIT License.
