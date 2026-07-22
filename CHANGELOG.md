@@ -1,8 +1,16 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).
+## [0.1.0] - 2026-07-22
 
-## [Unreleased]
-- Adds first version
+### Added
+
+- Idempotency middleware for Laravel applications
+- Request fingerprinting using SHA-256
+- Response replay support
+- Idempotency conflict detection
+- Cache-based response storage
+- Cache-based locking
+- Configurable idempotency header and expiration
+- Extension points through contracts

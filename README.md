@@ -1,48 +1,305 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/nunomaduro/skeleton-php/master/docs/example.png" height="300" alt="Skeleton Php">
-    <p align="center">
-        <a href="https://github.com/nunomaduro/skeleton-php/actions"><img alt="GitHub Workflow Status (master)" src="https://github.com/nunomaduro/skeleton-php/actions/workflows/tests.yml/badge.svg"></a>
-        <a href="https://packagist.org/packages/nunomaduro/skeleton-php"><img alt="Total Downloads" src="https://img.shields.io/packagist/dt/nunomaduro/skeleton-php"></a>
-        <a href="https://packagist.org/packages/nunomaduro/skeleton-php"><img alt="Latest Version" src="https://img.shields.io/packagist/v/nunomaduro/skeleton-php"></a>
-        <a href="https://packagist.org/packages/nunomaduro/skeleton-php"><img alt="License" src="https://img.shields.io/packagist/l/nunomaduro/skeleton-php"></a>
-        <a href="https://youtube.com/@nunomaduro?sub_confirmation=1"><img alt="YouTube Channel Subscribers" src="https://img.shields.io/youtube/channel/subscribers/UCO_hYZF2gb_CyG5sA7ArlGg?style=flat&label=youtube&color=brightgreen"></a>
-    </p>
+    <a href="https://github.com/AdilAzhari/laravel-idempotency/actions">
+        <img src="https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml/badge.svg">
+    </a>
 </p>
 
-------
-This package provides a wonderful **PHP Skeleton** to start building your next package idea.
+# Laravel Idempotency
 
-> **Requires [PHP 8.5+](https://php.net/releases/)**
+Laravel Idempotency prevents duplicate execution of requests caused by retries. It is designed for write operations where executing the same request multiple times can create unwanted side effects, such as payments, orders, account updates, and external API calls.
 
-⚡️ Create your package using [Composer](https://getcomposer.org):
+When a client sends an `Idempotency-Key`, the package associates that key with the request details and stores the resulting HTTP response. If the same request is repeated with the same key, the original response is returned without executing the request pipeline again.
+
+If the same key is reused with different request details, the package throws an `IdempotencyConflictException`.
+
+## Requirements
+
+* PHP 8.5 or later
+* Laravel 13
+* A cache driver that supports atomic locks
+
+For production environments with multiple application instances, use a shared cache backend such as Redis or database cache.
+
+## Supported Laravel Versions
+
+| Laravel Version | Package Version |
+| --------------- | --------------- |
+| 13.x            | 0.x             |
+
+Laravel Idempotency 0.x currently supports Laravel 13.
+
+Support for additional Laravel versions may be added in future releases.
+
+## Installation
+
+Install the package using Composer:
 
 ```bash
-composer create-project nunomaduro/skeleton-php --prefer-source --remove-vcs PackageName
+composer require adilazhari/laravel-idempotency
 ```
 
-🧹 Keep a modern codebase with **Pint**:
+Laravel automatically discovers the service provider.
+
+To customize the package configuration, publish the configuration file:
+
 ```bash
-composer lint
+php artisan vendor:publish --tag=idempotency-config
 ```
 
-✅ Run refactors using **Rector**
-```bash
-composer refactor
+This will create:
+
+```text
+config/idempotency.php
 ```
 
-⚗️ Run static analysis using **PHPStan**:
-```bash
-composer test:types
+## Usage
+
+Apply the idempotency middleware to any route that requires protection.
+
+Example:
+
+```php
+use AdilAzhari\LaravelIdempotency\Http\Middleware\IdempotencyMiddleware;
+use Illuminate\Support\Facades\Route;
+
+Route::post('/payments', CreatePaymentController::class)
+    ->middleware(IdempotencyMiddleware::class);
 ```
 
-✅ Run unit tests using **PEST**
-```bash
-composer test:unit
+Clients should provide a unique idempotency key with the request:
+
+```http
+POST /payments HTTP/1.1
+Content-Type: application/json
+Idempotency-Key: payment-7f1f7b2e
+
+{
+    "amount": 1000,
+    "currency": "MYR"
+}
 ```
 
-🚀 Run the entire test suite:
+The first request is processed normally. After the response is generated, the package stores the response details.
+
+A retry with:
+
+* the same idempotency key
+* the same HTTP method
+* the same path
+* the same query parameters
+* the same request input
+
+will receive the stored response without executing the endpoint again.
+
+Example:
+
+```text
+Request 1:
+POST /payments
+Idempotency-Key: payment-123
+
+Controller executed
+Response stored
+
+
+Request 2:
+POST /payments
+Idempotency-Key: payment-123
+
+Stored response returned
+Controller not executed
+```
+
+Requests without an idempotency key continue normally.
+
+## Configuration
+
+The default configuration:
+
+```php
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Idempotency Header
+    |--------------------------------------------------------------------------
+    |
+    | The request header used to identify idempotency requests.
+    |
+    */
+
+    'header' => 'Idempotency-Key',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lock Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Controls how long a request execution lock is held.
+    |
+    */
+
+    'lock' => [
+        'seconds' => 10,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Response Expiration
+    |--------------------------------------------------------------------------
+    |
+    | The amount of time a stored response can be replayed.
+    |
+    */
+
+    'expiration' => 86400,
+
+];
+```
+
+### Configuration Options
+
+| Option         | Description                                                     |
+| -------------- | --------------------------------------------------------------- |
+| `header`       | The HTTP header containing the idempotency key                  |
+| `lock.seconds` | Maximum time an in-progress request can hold the execution lock |
+| `expiration`   | How long stored responses remain available                      |
+
+The lock duration should be longer than the expected execution time of protected endpoints.
+
+If the lock expires while the original request is still processing, another request may execute concurrently.
+
+## How Request Matching Works
+
+Laravel Idempotency uses a request fingerprint to determine whether a retry represents the same operation.
+
+The default `Sha256RequestFingerprinter` creates a fingerprint based on:
+
+* HTTP method
+* Request path
+* Query parameters
+* Parsed request input
+
+Example:
+
+```text
+POST /payments
+
+{
+    "amount": 1000
+}
+```
+
+and:
+
+```text
+POST /payments
+
+{
+    "amount": 2000
+}
+```
+
+are considered different requests even when they use the same idempotency key.
+
+## Extending the Package
+
+The package uses contracts so its core behaviour can be replaced.
+
+Available extension points:
+
+### Request Fingerprinting
+
+Replace the default fingerprint implementation:
+
+```php
+RequestFingerprinter
+```
+
+Example use cases:
+
+* Include custom headers
+* Ignore specific fields
+* Use another hashing strategy
+
+---
+
+### Storage
+
+Replace the response storage implementation:
+
+```php
+IdempotencyStore
+```
+
+Possible implementations:
+
+* Redis
+* Database
+* DynamoDB
+* Custom storage service
+
+---
+
+### Locking
+
+Replace the execution lock implementation:
+
+```php
+IdempotencyLock
+```
+
+Possible implementations:
+
+* Redis locks
+* Database locks
+* Distributed lock services
+
+## Architecture Overview
+
+The request lifecycle:
+
+```text
+Client
+  |
+  | Idempotency-Key
+  |
+Middleware
+  |
+  |-- Generate request fingerprint
+  |
+  |-- Acquire lock
+  |
+  |-- Check stored response
+  |
+  |-- Execute request if missing
+  |
+  |-- Store response
+  |
+  |-- Release lock
+  |
+Response
+```
+
+The package ensures that only one request with a specific idempotency key executes at a time.
+
+## Testing
+
+Run the complete test suite:
+
 ```bash
 composer test
 ```
 
-**Skeleton PHP** was created by **[Nuno Maduro](https://x.com/enunomaduro)** under the **[MIT license](https://opensource.org/licenses/MIT)**.
+The test suite includes:
+
+* Response replay behaviour
+* Idempotency conflicts
+* Expired records
+* Lock handling
+* Service provider bindings
+* Middleware integration
+
+## License
+
+Laravel Idempotency is open-source software licensed under the [MIT License](LICENSE.md).
