@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Questions & Discussions
+    url: https://github.com/AdilAzhari/laravel-idempotency/discussions
+    about: Please use GitHub Discussions for general questions.
