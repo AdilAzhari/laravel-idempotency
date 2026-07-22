@@ -1,13 +1,66 @@
 # Security Policy
 
-**PLEASE DON'T DISCLOSE SECURITY-RELATED ISSUES PUBLICLY, [SEE BELOW](#reporting-a-vulnerability).**
+## Supported Versions
+
+The following versions of Laravel Idempotency currently receive security updates.
+
+| Version | Supported |
+|---------|-----------|
+| 0.x | ✅ |
+| < 0.1.0 | ❌ |
+
+Only the latest release series receives security fixes.
+
+---
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please report it privately using one of the following channels:
+If you discover a security vulnerability, please **do not open a public GitHub issue**.
 
-1. **GitHub Private Vulnerability Reporting** (preferred) — go to the repository's **Security** tab and click **"Report a vulnerability"**. This creates a private advisory visible only to maintainers and provides a structured workflow for triage, fix coordination, and CVE assignment.
+Instead, report it privately by email:
 
-2. **Email** — send the details to Nuno Maduro at **enunomaduro@gmail.com**.
+**adilazhariosman@gmail.com**
 
-All security vulnerabilities will be promptly addressed.
+Please include as much information as possible:
+
+- Package version
+- PHP version
+- Laravel version
+- Steps to reproduce
+- Proof of concept (if available)
+- Potential impact
+
+I will acknowledge receipt of your report as soon as possible and investigate the issue.
+
+If the report is confirmed, I will:
+
+1. Develop and test a fix.
+2. Publish a patched release.
+3. Credit the reporter (unless anonymity is requested).
+
+---
+
+## Scope
+
+Examples of security issues include:
+
+- Authentication or authorization bypasses
+- Request replay vulnerabilities
+- Locking or race condition bypasses
+- Idempotency key collision attacks
+- Cache poisoning
+- Sensitive information disclosure
+- Remote code execution
+- Denial-of-service vulnerabilities caused by the package
+
+General bugs, feature requests, and documentation improvements should be submitted through GitHub Issues instead.
+
+---
+
+## Disclosure Policy
+
+Please allow reasonable time for the vulnerability to be investigated and resolved before making any public disclosure.
+
+Coordinated disclosure helps protect users while fixes are being prepared and released.
+
+Thank you for helping improve the security of Laravel Idempotency.
