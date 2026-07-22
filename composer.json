@@ -1,6 +1,7 @@
 {
     "name": "adilazhari/laravel-idempotency",
     "description": "A Laravel package providing idempotent request handling.",
+    "homepage": "https://github.com/AdilAzhari/laravel-idempotency",
     "keywords": [
         "laravel",
         "idempotency",
@@ -16,7 +17,12 @@
         }
     ],
     "require": {
-        "php": "^8.5.0"
+        "php": "^8.5.0",
+        "illuminate/cache": "^13.0",
+        "illuminate/config": "^13.0",
+        "illuminate/contracts": "^13.0",
+        "illuminate/http": "^13.0",
+        "illuminate/support": "^13.0"
     },
     "require-dev": {
         "laravel/framework": "^13.20",
@@ -38,6 +44,13 @@
     "autoload-dev": {
         "psr-4": {
             "AdilAzhari\\LaravelIdempotency\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AdilAzhari\\LaravelIdempotency\\LaravelIdempotencyServiceProvider"
+            ]
         }
     },
     "minimum-stability": "dev",
