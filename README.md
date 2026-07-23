@@ -1,18 +1,10 @@
 <p align="center">
-    <a href="https://github.com/AdilAzhari/laravel-idempotency/actions">
-        <img src="https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml/badge.svg" alt="Tests">
-    </a>
-    <a href="https://packagist.org/packages/adilazhari/laravel-idempotency">
-        <img src="https://img.shields.io/packagist/v/adilazhari/laravel-idempotency" alt="Latest Version">
-    </a>
-    <a href="https://packagist.org/packages/adilazhari/laravel-idempotency">
-        <img src="https://img.shields.io/packagist/dt/adilazhari/laravel-idempotency" alt="Downloads">
-    </a>
-    <a href="LICENSE.md">
-        <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
-    </a>
+    <img src="assets/banner.jpg" alt="Laravel Idempotency">
 </p>
 
+<p align="center">
+    <img src="assets/logo.jpg" width="120" alt="Laravel Idempotency Logo">
+</p>
 # Laravel Idempotency
 
 Laravel Idempotency provides a framework-native way to protect write operations from accidental duplicate execution.
