@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="assets/banner.png" alt="Laravel Idempotency">
+    <img src="assets/banner.jpg" alt="Laravel Idempotency">
 </p>
 
 <p align="center">
