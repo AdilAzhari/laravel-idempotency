@@ -1,9 +1,9 @@
 <p align="center">
-    <img src="assets/banner.jpg" alt="Laravel Idempotency">
+    <img src="assets/banner.png" alt="Laravel Idempotency">
 </p>
 
 <p align="center">
-    <img src="assets/logo.jpg" width="120" alt="Laravel Idempotency Logo">
+    <img src="assets/logo.png" width="120" alt="Laravel Idempotency Logo">
 </p>
 # Laravel Idempotency
 
