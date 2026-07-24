@@ -21,7 +21,6 @@ it('can create an idempotency record', function (): void {
 });
 
 it('determines if response is expired', function (): void {
-
     $response = new IdempotencyRecord(
         key: 'payment-123',
         fingerprint: 'abc123',
@@ -34,7 +33,21 @@ it('determines if response is expired', function (): void {
 
     expect($response->isExpired())
         ->toBeTrue();
+});
 
+it('detects active records', function (): void {
+    $record = new IdempotencyRecord(
+        key: 'active-key',
+        fingerprint: 'fingerprint',
+        status: 200,
+        headers: [],
+        body: '{}',
+        createdAt: new DateTimeImmutable,
+        expiresAt: new DateTimeImmutable('+1 day'),
+    );
+
+    expect($record->isExpired())
+        ->toBeFalse();
 });
 
 it('represents a non-empty idempotency key as a string', function (): void {
@@ -47,4 +60,34 @@ it('represents a non-empty idempotency key as a string', function (): void {
 it('rejects an empty idempotency key', function (): void {
     expect(fn (): IdempotencyKey => new IdempotencyKey(''))
         ->toThrow(InvalidArgumentException::class);
+});
+
+it(/**
+ * @throws DateMalformedStringException
+ */ 'can serialize and deserialize an idempotency record', function (): void {
+
+    $record = new IdempotencyRecord(
+        key: 'payment-request-123',
+        fingerprint: 'fingerprint-value',
+        status: 201,
+        headers: [
+            'Content-Type' => [
+                'application/json',
+            ],
+            'X-Test' => [
+                'value',
+                null,
+            ],
+        ],
+        body: '{"message":"success"}',
+        createdAt: new DateTimeImmutable('2026-07-24T10:00:00+00:00'),
+        expiresAt: new DateTimeImmutable('2026-07-25T10:00:00+00:00'),
+    );
+
+    $array = $record->toArray();
+
+    $restored = IdempotencyRecord::fromArray($array);
+
+    expect($restored)
+        ->toEqual($record);
 });
