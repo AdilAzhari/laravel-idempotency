@@ -3,18 +3,26 @@
 declare(strict_types=1);
 
 use AdilAzhari\LaravelIdempotency\Stores\ArrayIdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Tests\Support\RecordFactory;
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
 
 it('stores and retrieves an idempotency record', function (): void {
 
     $store = new ArrayIdempotencyStore;
 
-    $record = makeRecord();
+    $record = RecordFactory::make();
 
     $store->store($record);
 
-    expect($store->find('test-key'))
-        ->toEqual($record);
+    $stored = $store->find($record->key);
+
+    expect($stored)
+        ->not->toBeNull();
+
+    assert($stored instanceof IdempotencyRecord);
+
+    expect($stored->toArray())
+        ->toEqual($record->toArray());
 });
 
 it('returns null when record does not exist', function (): void {
@@ -29,7 +37,7 @@ it('forgets an existing record', function (): void {
 
     $store = new ArrayIdempotencyStore;
 
-    $record = makeRecord();
+    $record = RecordFactory::make();
 
     $store->store($record);
 

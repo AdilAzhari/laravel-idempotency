@@ -41,4 +41,8 @@ return [
 
     'expiration' => 86400,
 
+    'redis' => [
+        'connection' => 'default',
+        'prefix' => 'laravel-idempotency:',
+    ],
 ];

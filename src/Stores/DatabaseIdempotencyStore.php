@@ -1,61 +1,61 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AdilAzhari\LaravelIdempotency\Stores;
 
-
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
-use AdilAzhari\LaravelIdempotency\Models\IdempotencyRecord;
+use AdilAzhari\LaravelIdempotency\Models\IdempotencyRecord as IdempotencyRecordModel;
+use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
+use Carbon\CarbonImmutable;
 
-class DatabaseStore implements IdempotencyStore
+final class DatabaseIdempotencyStore implements IdempotencyStore
 {
-
-    public function find(string $key): ?\AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord
+    public function find(string $key): ?IdempotencyRecord
     {
-        $record = IdempotencyRecord::query()
+        $record = IdempotencyRecordModel::query()
             ->where('key', $key)
             ->where('expires_at', '>', now())
             ->first();
 
-
-        if (! $record) {
+        if ($record === null) {
             return null;
         }
 
-
-        return new \AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord(
-            key: $record->getKey(),
+        return new IdempotencyRecord(
+            key: $record->key,
             fingerprint: $record->fingerprint,
             status: $record->status,
             headers: $record->headers,
             body: $record->body,
-            createdAt: $record->createdAt,
+            createdAt: $record->created_at,
             expiresAt: $record->expires_at,
         );
     }
 
-
-    public function store(
-        \AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord $record
-    ): void {
-
-        IdempotencyRecord::query()->updateOrCreate(
-            [
-                'key' => $record->key,
-            ],
-            [
-                'fingerprint' => $record->fingerprint,
-                'status' => $record->status,
-                'headers' => $record->headers,
-                'body' => $record->body,
-                'expires_at' => now()->addSeconds($record->expiresAt),
-            ]
-        );
-
+    public function store(IdempotencyRecord $record): void
+    {
+        IdempotencyRecordModel::query()
+            ->updateOrCreate(
+                [
+                    'key' => $record->key,
+                ],
+                [
+                    'fingerprint' => $record->fingerprint,
+                    'status' => $record->status,
+                    'headers' => $record->headers,
+                    'body' => $record->body,
+                    'expires_at' => CarbonImmutable::instance(
+                        $record->expiresAt
+                    ),
+                ]
+            );
     }
-
 
     public function forget(string $key): void
     {
-        IdempotencyRecord::query()->where('key', $key)->delete();
+        IdempotencyRecordModel::query()
+            ->where('key', $key)
+            ->delete();
     }
 }

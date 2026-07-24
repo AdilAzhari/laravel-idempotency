@@ -1,5 +1,0 @@
-<?php
-
-it('$END$', function () {
-
-});
