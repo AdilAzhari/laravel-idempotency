@@ -5,11 +5,38 @@
 <p align="center">
     <img src="assets/logo.png" width="120" alt="Laravel Idempotency Logo">
 </p>
+
+<h1 align="center">Laravel Idempotency</h1>
+
+<p align="center">
+    Framework-native HTTP idempotency for Laravel applications.
+</p>
+
+<p align="center">
+
+[![Tests](https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml/badge.svg)](https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml)
+
+![PHP](https://img.shields.io/badge/PHP-8.5+-777BB4)
+
+![Laravel](https://img.shields.io/badge/Laravel-13.x-FF2D20)
+
+![License](https://img.shields.io/github/license/AdilAzhari/laravel-idempotency)
+
+</p>
+
+---
+
+# Why Another Idempotency Package?
+
+Laravel applications commonly implement idempotency in an ad-hoc manner, often coupling request replay, persistence, and locking into application code.
+
+Laravel Idempotency provides a reusable, framework-native solution built around explicit contracts and interchangeable components, allowing storage, fingerprinting, and locking strategies to evolve independently.
+
 # Laravel Idempotency
 
-Laravel Idempotency provides a framework-native way to protect write operations from accidental duplicate execution.
+Laravel Idempotency provides a framework-native solution for ensuring that identical HTTP requests are executed exactly once.
 
-Using an `Idempotency-Key`, the package guarantees that the same logical request is processed only once while safely replaying the original HTTP response to subsequent retries.
+Using an **Idempotency-Key**, the package stores the original HTTP response and automatically replays it for subsequent identical requests, eliminating accidental duplicate operations caused by retries or network failures.
 
 It is particularly useful for:
 
@@ -19,29 +46,32 @@ It is particularly useful for:
 - Inventory updates
 - Account changes
 - External API integrations
+- Webhook processing
 
 ---
 
-# Why?
+# Why Idempotency?
 
-Retries happen.
+Distributed systems are unreliable.
 
-Mobile applications retry requests.
+Clients retry requests.
 
 Browsers retry requests.
 
-Load balancers retry requests.
+Mobile applications automatically retry after network interruptions.
 
-Network failures cause clients to send the same request multiple times.
+Load balancers and reverse proxies may resend requests.
 
-Without idempotency, a single retry can accidentally create duplicate:
+Without idempotency, a single retry can unintentionally create duplicate:
 
-- payments
-- orders
-- invoices
-- subscriptions
+- Payments
+- Orders
+- Invoices
+- Subscriptions
+- Shipments
+- Customer accounts
 
-Laravel Idempotency ensures that identical requests execute exactly once.
+Laravel Idempotency guarantees that the same logical operation executes only once while returning the original response for every identical retry.
 
 ---
 
@@ -49,45 +79,61 @@ Laravel Idempotency ensures that identical requests execute exactly once.
 
 - HTTP idempotency middleware
 - Atomic request locking
-- Request fingerprinting
 - Automatic response replay
+- SHA-256 request fingerprinting
 - Configurable response expiration
-- Pluggable storage implementation
+- Multiple storage drivers
+    - Array
+    - Cache
+    - Redis
+    - Database
+- Database pruning command
 - Custom fingerprint strategies
+- Custom storage implementations
 - Laravel-native dependency injection
 - Fully tested
+- Production-ready
 
 ---
 
 # Requirements
 
 - PHP 8.5+
-- Laravel 13
-- Cache driver supporting atomic locks
+- Laravel 13+
 
-For distributed deployments, use a shared cache such as Redis or the database cache driver.
+For production deployments, use a shared storage backend such as Redis or the Database driver.
 
 ---
 
 # Installation
 
+Install the package using Composer.
+
 ```bash
 composer require adilazhari/laravel-idempotency
 ```
 
-Laravel automatically discovers the service provider.
+Laravel automatically discovers the package.
 
-Publish the configuration:
+Publish the configuration file:
 
 ```bash
 php artisan vendor:publish --tag=idempotency-config
+```
+
+If you intend to use the database storage driver, also publish the migration:
+
+```bash
+php artisan vendor:publish --tag=idempotency-migrations
+
+php artisan migrate
 ```
 
 ---
 
 # Quick Start
 
-Protect any endpoint with the middleware.
+Protect any write endpoint using the middleware.
 
 ```php
 use AdilAzhari\LaravelIdempotency\Http\Middleware\IdempotencyMiddleware;
@@ -97,7 +143,7 @@ Route::post('/payments', CreatePaymentController::class)
     ->middleware(IdempotencyMiddleware::class);
 ```
 
-Clients simply send an idempotency key.
+Clients simply provide an idempotency key.
 
 ```http
 POST /payments
@@ -118,37 +164,41 @@ Subsequent identical requests return the previously stored response without exec
 # How It Works
 
 ```
-                Client
-                   │
-                   ▼
-      Idempotency Middleware
-                   │
+                 Client
+                    │
+                    ▼
+       Idempotency Middleware
+                    │
+                    ▼
      Generate Request Fingerprint
-                   │
-          Acquire Execution Lock
-                   │
-        Existing Stored Response?
-          │                  │
-         Yes                No
-          │                  │
-          ▼                  ▼
- Replay Stored Response   Execute Controller
-                             │
-                             ▼
-                      Store HTTP Response
-                             │
-                             ▼
-                        Release Lock
-                             │
-                             ▼
-                        Return Response
+                    │
+                    ▼
+         Acquire Execution Lock
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+        ▼                       ▼
+ Existing Response?          No Response
+        │                       │
+      Yes                       ▼
+        │               Execute Controller
+        │                       │
+        ▼                       ▼
+ Replay Stored Response   Store HTTP Response
+        │                       │
+        └───────────┬───────────┘
+                    ▼
+             Release Lock
+                    │
+                    ▼
+             Return Response
 ```
 
 ---
 
 # Request Matching
 
-A request is considered identical when all of the following match:
+Two requests are considered identical when all of the following match:
 
 - Idempotency key
 - HTTP method
@@ -156,9 +206,9 @@ A request is considered identical when all of the following match:
 - Query parameters
 - Parsed request body
 
-The default implementation uses `Sha256RequestFingerprinter`.
+The default implementation uses the built-in `Sha256RequestFingerprinter`.
 
-Example:
+For example:
 
 ```http
 POST /payments
@@ -178,9 +228,30 @@ POST /payments
 }
 ```
 
-are treated as different requests, even if they use the same idempotency key.
+are treated as different requests, even if they share the same idempotency key.
 
 If the same key is reused for different request data, an `IdempotencyConflictException` is thrown.
+
+---
+
+# Storage Drivers
+
+Laravel Idempotency supports multiple persistence backends.
+
+| Driver | Recommended Usage |
+|---------|-------------------|
+| Array | Testing |
+| Cache | Default |
+| Redis | Distributed applications |
+| Database | Durable persistence |
+
+Select the active driver through configuration.
+
+```env
+IDEMPOTENCY_STORE=cache
+```
+
+Switching drivers requires no application code changes.
 
 ---
 
@@ -188,6 +259,30 @@ If the same key is reused for different request data, an `IdempotencyConflictExc
 
 ```php
 return [
+
+    'driver' => env('IDEMPOTENCY_STORE', 'cache'),
+
+    'stores' => [
+
+        'cache' => [
+            'driver' => 'cache',
+        ],
+
+        'array' => [
+            'driver' => 'array',
+        ],
+
+        'redis' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'prefix' => 'idempotency:',
+        ],
+
+        'database' => [
+            'driver' => 'database',
+        ],
+
+    ],
 
     'header' => 'Idempotency-Key',
 
@@ -202,67 +297,180 @@ return [
 
 | Option | Description |
 |----------|-------------|
-| `header` | Header containing the idempotency key |
+| `driver` | Active storage driver |
+| `header` | HTTP header containing the idempotency key |
 | `lock.seconds` | Maximum lock duration |
 | `expiration` | Lifetime of stored responses |
 
-Choose a lock duration that comfortably exceeds the expected execution time of protected endpoints.
-
+The lock duration should comfortably exceed the execution time of your protected endpoints.
 ---
 
 # Extending
 
-Laravel Idempotency is built around contracts, allowing individual components to be replaced.
+Laravel Idempotency is built around a small set of contracts, allowing individual components to be replaced without modifying the package.
 
 ## Custom Request Fingerprinting
 
+Bind your own implementation of the `RequestFingerprinter` contract.
+
 ```php
+use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
+
 $this->app->bind(
     RequestFingerprinter::class,
-    CustomFingerprinter::class,
+    CustomRequestFingerprinter::class,
 );
 ```
 
-Possible use cases:
+Possible use cases include:
 
-- Ignore selected fields
-- Include custom headers
-- Different hashing strategy
+- Ignoring selected request fields
+- Including additional HTTP headers
+- Supporting custom hashing algorithms
+- Multi-tenant request isolation
 
 ---
 
-## Custom Response Storage
+## Custom Storage
+
+Implement the `IdempotencyStore` contract to persist responses anywhere.
 
 ```php
+use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
+
 $this->app->bind(
     IdempotencyStore::class,
-    DatabaseIdempotencyStore::class,
+    CustomIdempotencyStore::class,
 );
 ```
 
-Possible implementations:
+Possible implementations include:
 
 - Redis
 - Database
 - DynamoDB
-- External storage service
+- MongoDB
+- Amazon S3
+- External persistence services
 
 ---
 
 ## Custom Locking
 
+Locking is also replaceable.
+
 ```php
+use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyLock;
+
 $this->app->bind(
     IdempotencyLock::class,
-    RedisIdempotencyLock::class,
+    CustomIdempotencyLock::class,
 );
 ```
 
-Possible implementations:
+This allows integration with:
 
 - Redis locks
 - Database locks
 - Distributed lock services
+- Cloud-native coordination systems
+
+---
+
+# Storage Drivers
+
+## Cache Driver
+
+The Cache driver is the default storage implementation.
+
+```env
+IDEMPOTENCY_STORE=cache
+```
+
+It stores responses using Laravel's configured cache store and is suitable for most applications.
+
+---
+
+## Array Driver
+
+The Array driver stores responses in memory.
+
+```env
+IDEMPOTENCY_STORE=array
+```
+
+This driver is intended for:
+
+- Unit tests
+- Local development
+- Temporary storage
+
+Because data exists only in memory, it should not be used in production.
+
+---
+
+## Redis Driver
+
+The Redis driver stores responses directly in Redis.
+
+```env
+IDEMPOTENCY_STORE=redis
+```
+
+Configuration:
+
+```php
+'redis' => [
+
+    'driver' => 'redis',
+
+    'connection' => 'default',
+
+    'prefix' => 'idempotency:',
+
+],
+```
+
+This driver is recommended for distributed deployments where multiple application instances must share idempotency records.
+
+---
+
+## Database Driver
+
+The Database driver persists responses using Eloquent.
+
+```env
+IDEMPOTENCY_STORE=database
+```
+
+Before using it, publish the migration:
+
+```bash
+php artisan vendor:publish --tag=idempotency-migrations
+
+php artisan migrate
+```
+
+The database driver provides durable storage that survives cache flushes and application restarts.
+
+---
+
+# Pruning Expired Records
+
+Expired database records can be removed using the built-in Artisan command.
+
+```bash
+php artisan idempotency:prune
+```
+
+Scheduling the command is recommended.
+
+```php
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('idempotency:prune')
+    ->daily();
+```
 
 ---
 
@@ -287,37 +495,63 @@ Run the complete test suite.
 composer test
 ```
 
-The package includes automated tests covering:
+The package includes comprehensive unit and feature tests covering:
 
-- Response replay
+- Request replay
 - Conflict detection
-- Expired responses
-- Lock handling
+- Request fingerprinting
+- Atomic locking
+- Cache storage
+- Redis storage
+- Database storage
+- Array storage
 - Middleware integration
-- Service provider bindings
+- Service provider registration
 - Configuration
+- Console commands
 
-Current test coverage exceeds **90%**.
+---
+
+# Documentation
+
+Additional documentation is available in the `docs` directory.
+
+- Architecture
+- Storage Drivers
+- Custom Fingerprinting
+- Custom Storage Drivers
+- Custom Locking
+- Contributing Guide
 
 ---
 
 # Roadmap
 
 - ✅ Laravel 13 support
-- ✅ Configurable request fingerprinting
-- ✅ Cache-backed storage
+- ✅ HTTP idempotency middleware
 - ✅ Atomic request locking
-- ⏳ Database storage driver
-- ⏳ Redis storage driver
-- ⏳ Laravel 14 support
+- ✅ SHA-256 request fingerprinting
+- ✅ Cache storage driver
+- ✅ Array storage driver
+- ✅ Redis storage driver
+- ✅ Database storage driver
+- ✅ Configurable storage drivers
+- ✅ Database pruning command
+- 🚧 Additional storage adapters
 
 ---
 
 # Contributing
 
-Contributions, ideas, and bug reports are welcome.
+Contributions are welcome.
 
-Please open an issue before submitting significant changes so the implementation can be discussed first.
+If you discover a bug or would like to propose a new feature, please open an issue before submitting a pull request so the implementation can be discussed first.
+
+When contributing:
+
+- Follow the existing coding style.
+- Include tests for new functionality.
+- Ensure `composer test` passes before opening a pull request.
 
 ---
 
