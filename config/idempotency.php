@@ -74,5 +74,4 @@ return [
     */
 
     'expiration' => 86400,
-
 ];

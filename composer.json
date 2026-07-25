@@ -22,7 +22,8 @@
         "illuminate/config": "^13.0",
         "illuminate/contracts": "^13.0",
         "illuminate/http": "^13.0",
-        "illuminate/support": "^13.0"
+        "illuminate/support": "^13.0",
+        "predis/predis": "^3.5"
     },
     "require-dev": {
         "laravel/framework": "^13.20",

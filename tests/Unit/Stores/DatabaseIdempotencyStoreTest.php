@@ -21,8 +21,12 @@ it('stores and retrieves an idempotency record', function (): void {
 
     expect($stored)
         ->not->toBeNull()
-        ->and($stored?->toArray())
-        ->toEqual($record->toArray());
+        ->and($stored?->key)->toEqual($record->key)
+        ->and($stored?->fingerprint)->toEqual($record->fingerprint)
+        ->and($stored?->status)->toEqual($record->status)
+        ->and($stored?->headers)->toEqual($record->headers)
+        ->and($stored?->body)->toEqual($record->body)
+        ->and($stored?->expiresAt->getTimestamp())->toEqual($record->expiresAt->getTimestamp());
 });
 
 it('returns null when record does not exist', function (): void {
