@@ -58,4 +58,11 @@ final class DatabaseIdempotencyStore implements IdempotencyStore
             ->where('key', $key)
             ->delete();
     }
+
+    public function pruneExpired(): int
+    {
+        return IdempotencyRecordModel::query()
+            ->where('expires_at', '<=', now())
+            ->delete();
+    }
 }
