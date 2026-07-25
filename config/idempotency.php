@@ -6,11 +6,51 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Idempotency Header
+    | Storage Driver
     |--------------------------------------------------------------------------
     |
-    | The HTTP header used to identify idempotent requests.
+    | Supported:
+    | - array
+    | - cache
+    | - redis
+    | - database
     |
+    */
+
+    'driver' => env('IDEMPOTENCY_STORE', 'cache'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Storage Drivers
+    |--------------------------------------------------------------------------
+    */
+
+    'stores' => [
+
+        'array' => [
+            'driver' => 'array',
+        ],
+
+        'cache' => [
+            'driver' => 'cache',
+        ],
+
+        'redis' => [
+            'driver' => 'redis',
+            'connection' => env('IDEMPOTENCY_REDIS_CONNECTION', 'default'),
+            'prefix' => env('IDEMPOTENCY_REDIS_PREFIX', 'idempotency:'),
+        ],
+
+        'database' => [
+            'driver' => 'database',
+        ],
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Idempotency Header
+    |--------------------------------------------------------------------------
     */
 
     'header' => 'Idempotency-Key',
@@ -19,9 +59,6 @@ return [
     |--------------------------------------------------------------------------
     | Lock Configuration
     |--------------------------------------------------------------------------
-    |
-    | How long a request owns the idempotency lock.
-    |
     */
 
     'lock' => [
@@ -34,15 +71,8 @@ return [
     |--------------------------------------------------------------------------
     | Record Expiration
     |--------------------------------------------------------------------------
-    |
-    | How long stored responses remain valid.
-    |
     */
 
     'expiration' => 86400,
 
-    'redis' => [
-        'connection' => 'default',
-        'prefix' => 'laravel-idempotency:',
-    ],
 ];
