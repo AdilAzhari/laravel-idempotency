@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AdilAzhari\LaravelIdempotency\Models;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -16,21 +17,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $expires_at
  */
+#[Fillable('key', 'fingerprint', 'status', 'headers', 'body', 'expires_at')]
 final class IdempotencyRecord extends Model
 {
-    /**
-     * @var array<int, string>
-     */
-    #[\Override]
-    protected $fillable = [
-        'key',
-        'fingerprint',
-        'status',
-        'headers',
-        'body',
-        'expires_at',
-    ];
-
     /**
      * @var array<string, 'array'|'immutable_datetime'>
      */

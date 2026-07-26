@@ -44,6 +44,7 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                 /** @var ConfigRepository $config */
                 $config = $app->make(ConfigRepository::class);
 
+                /** @var string $driver */
                 $driver = $config->get(
                     'idempotency.driver',
                     'cache'

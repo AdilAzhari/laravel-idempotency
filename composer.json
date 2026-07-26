@@ -22,10 +22,10 @@
         "illuminate/config": "^13.0",
         "illuminate/contracts": "^13.0",
         "illuminate/http": "^13.0",
-        "illuminate/support": "^13.0",
-        "predis/predis": "^3.5"
+        "illuminate/support": "^13.0"
     },
     "require-dev": {
+        "larastan/larastan": "^3.10",
         "laravel/framework": "^13.20",
         "laravel/pint": "^1.29.3",
         "orchestra/testbench": "^11.1",
@@ -35,8 +35,7 @@
         "pestphp/pest-plugin-type-coverage": "^5.0.0",
         "phpstan/phpstan": "^2.2.5",
         "rector/rector": "^2.5.7",
-        "symfony/var-dumper": "^8.1.1",
-        "ext-redis": "*"
+        "symfony/var-dumper": "^8.1.1"
     },
     "autoload": {
         "psr-4": {

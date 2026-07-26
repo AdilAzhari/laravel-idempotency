@@ -17,6 +17,7 @@ final class PruneIdempotencyRecordsCommand extends Command
 
     public function handle(): int
     {
+        /** @var int $deleted */
         $deleted = IdempotencyRecord::query()
             ->where('expires_at', '<=', now())
             ->delete();

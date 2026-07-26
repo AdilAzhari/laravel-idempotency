@@ -2,14 +2,12 @@
 
 declare(strict_types=1);
 
-namespace AdilAzhari\LaravelIdempotency\Console\Commands\PruneIdempotencyRecords;
-
 use AdilAzhari\LaravelIdempotency\Models\IdempotencyRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\PendingCommand;
 
 pest()->use(RefreshDatabase::class);
-
-it('prunes expired idempotency records', function (): void {
+it('removes expired idempotency records', function (): void {
 
     IdempotencyRecord::query()->create([
         'key' => 'expired-key',
@@ -17,7 +15,6 @@ it('prunes expired idempotency records', function (): void {
         'status' => 200,
         'headers' => [],
         'body' => '{}',
-        'created_at' => now()->subDays(2),
         'expires_at' => now()->subDay(),
     ]);
 
@@ -27,16 +24,23 @@ it('prunes expired idempotency records', function (): void {
         'status' => 200,
         'headers' => [],
         'body' => '{}',
-        'created_at' => now(),
         'expires_at' => now()->addDay(),
     ]);
 
-    $this->artisan('idempotency:prune')
-        ->expectsOutput(
-            'Pruned 1 expired idempotency records.'
-        )
-        ->assertSuccessful();
+    /** @var PendingCommand $command */
+    $command = $this->artisan('idempotency:prune');
 
-    expect(IdempotencyRecord::query()->count())
-        ->toBe(1);
+    $command->expectsOutput('Pruned 1 expired idempotency records.')
+        ->assertSuccessful()
+        ->run();
+
+    expect(IdempotencyRecord::query()
+        ->where('key', 'expired-key')
+        ->exists()
+    )->toBeFalse()
+        ->and(IdempotencyRecord::query()
+            ->where('key', 'active-key')
+            ->exists()
+        )->toBeTrue();
+
 });

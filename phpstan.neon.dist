@@ -1,5 +1,6 @@
 includes:
     - vendor/pestphp/pest-plugin-phpstan/extension.neon
+    - vendor/larastan/larastan/extension.neon
 
 parameters:
     level: max
