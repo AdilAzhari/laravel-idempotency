@@ -8,6 +8,7 @@ use AdilAzhari\LaravelIdempotency\Commands\PruneIdempotencyRecordsCommand;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
+use AdilAzhari\LaravelIdempotency\Http\Middleware\IdempotencyMiddleware;
 use AdilAzhari\LaravelIdempotency\Locks\CacheIdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Stores\ArrayIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\CacheIdempotencyStore;
@@ -17,8 +18,10 @@ use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
+use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
 use RuntimeException;
@@ -146,6 +149,9 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
         );
     }
 
+    /**
+     * @throws BindingResolutionException
+     */
     public function boot(): void
     {
         $this->publishes([
@@ -157,5 +163,11 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                 PruneIdempotencyRecordsCommand::class,
             ]);
         }
+
+        $this->app->make(Kernel::class)
+            ->aliasMiddleware(
+                'idempotency',
+                IdempotencyMiddleware::class
+            );
     }
 }
