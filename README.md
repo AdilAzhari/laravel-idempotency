@@ -82,6 +82,9 @@ Laravel Idempotency guarantees that the same logical operation executes only onc
 - Automatic response replay
 - SHA-256 request fingerprinting
 - Configurable response expiration
+- Configurable HTTP method scope (skips safe methods like `GET` by default)
+- `Idempotency-Replayed` response header on every protected response
+- Idempotency key length validation
 - Multiple storage drivers
     - Array
     - Cache
@@ -230,7 +233,19 @@ POST /payments
 
 are treated as different requests, even if they share the same idempotency key.
 
-If the same key is reused for different request data, an `IdempotencyConflictException` is thrown.
+If the same key is reused for different request data, an `IdempotencyConflictException` is thrown and rendered as a `409 Conflict` JSON response.
+
+---
+
+# Error Responses
+
+| Situation | Exception | Status |
+|-----------|-----------|--------|
+| Same key reused with different request data | `IdempotencyConflictException` | `409 Conflict` |
+| Another request with the same key is still in flight | `IdempotencyLockConflictException` | `409 Conflict` |
+| Idempotency key exceeds `key_max_length` | `InvalidIdempotencyKeyException` | `400 Bad Request` |
+
+All three exceptions are self-rendering, so no custom exception handler registration is required.
 
 ---
 
@@ -286,6 +301,12 @@ return [
 
     'header' => 'Idempotency-Key',
 
+    'methods' => ['POST', 'PUT', 'PATCH', 'DELETE'],
+
+    'key_max_length' => 255,
+
+    'replay_header' => 'Idempotency-Replayed',
+
     'lock' => [
         'seconds' => 10,
     ],
@@ -299,6 +320,9 @@ return [
 |----------|-------------|
 | `driver` | Active storage driver |
 | `header` | HTTP header containing the idempotency key |
+| `methods` | HTTP methods the middleware applies to. An empty array applies it to every method. |
+| `key_max_length` | Maximum allowed length of an idempotency key before a `400` is returned |
+| `replay_header` | Response header set to `true`/`false` indicating a replayed vs. fresh response. Set to `null` to disable |
 | `lock.seconds` | Maximum lock duration |
 | `expiration` | Lifetime of stored responses |
 

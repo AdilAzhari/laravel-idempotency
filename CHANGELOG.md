@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- `Idempotency-Replayed` response header indicating whether a response was replayed or freshly executed (configurable via `replay_header`)
+- Configurable HTTP method scope for the middleware, defaulting to `POST`, `PUT`, `PATCH`, `DELETE` (`methods` config)
+- Idempotency key length validation (`key_max_length` config), rejected with a `400 Bad Request`
+- `idempotency-migrations` publish group, matching the installation instructions in the README
+
+### Fixed
+
+- `IdempotencyManager` is no longer resolved as a singleton, preventing a shared, mutable lock instance from leaking lock state between concurrent requests handled by the same worker (e.g. under Octane)
+- `CacheIdempotencyLock` now tracks each acquired lock independently instead of a single mutable slot, so releasing one key can no longer release a different key's lock
+- `IdempotencyConflictException` now renders as a `409 Conflict` JSON response instead of surfacing as an uncaught exception
+- Failing to acquire the idempotency lock now throws `IdempotencyLockConflictException`, rendered as `409 Conflict`, instead of a generic `RuntimeException`
+
+### Removed
+
+- Unused `RedisConnectionFactory` contract
+
 ## [1.0.0] - 2026-07-25
 
 ### Added
