@@ -93,14 +93,16 @@ Default implementation uses Laravel's atomic cache locks.
 
 1. Receive request
 2. Extract idempotency key
-3. Generate request fingerprint
-4. Acquire execution lock
-5. Check for existing response
-6. Replay response if available
-7. Execute controller
-8. Persist response
-9. Release lock
-10. Return response
+3. Pass through unchanged if the HTTP method is outside the configured `methods` list
+4. Validate the idempotency key length
+5. Generate request fingerprint
+6. Acquire execution lock
+7. Check for existing response
+8. Replay response if available, marking it via the `Idempotency-Replayed` header
+9. Execute controller
+10. Persist response
+11. Release lock
+12. Return response
 
 ---
 
