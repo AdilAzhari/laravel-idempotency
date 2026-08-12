@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyConflictException;
+use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyLockConflictException;
 use AdilAzhari\LaravelIdempotency\IdempotencyManager;
 use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Tests\Fakes\InMemoryIdempotencyLock;
@@ -149,6 +150,87 @@ it('releases the lock when the endpoint throws', function (): void {
     $response = $manager->handle($request, fn (): Response => new Response('processed'));
 
     expect($response->getContent())->toBe('processed');
+});
+
+it('marks a fresh response as not replayed and a cached response as replayed', function (): void {
+    $manager = new IdempotencyManager(
+        new InMemoryIdempotencyStore,
+        new Sha256RequestFingerprinter,
+        new InMemoryIdempotencyLock,
+    );
+
+    $firstResponse = $manager->handle(
+        idempotencyRequest('payment-123'),
+        fn (): Response => new Response('created', 201)
+    );
+
+    $secondResponse = $manager->handle(
+        idempotencyRequest('payment-123'),
+        fn (): Response => new Response('should not be returned')
+    );
+
+    expect($firstResponse->headers->get('Idempotency-Replayed'))->toBe('false')
+        ->and($secondResponse->headers->get('Idempotency-Replayed'))->toBe('true');
+});
+
+it('does not add a replay header when disabled', function (): void {
+    $manager = new IdempotencyManager(
+        new InMemoryIdempotencyStore,
+        new Sha256RequestFingerprinter,
+        new InMemoryIdempotencyLock,
+        replayHeader: null,
+    );
+
+    $response = $manager->handle(
+        idempotencyRequest('payment-123'),
+        fn (): Response => new Response('created', 201)
+    );
+
+    expect($response->headers->has('Idempotency-Replayed'))->toBeFalse();
+});
+
+it('ignores the idempotency key for methods outside the configured list', function (): void {
+    $manager = new IdempotencyManager(
+        new InMemoryIdempotencyStore,
+        new Sha256RequestFingerprinter,
+        new InMemoryIdempotencyLock,
+        methods: ['POST'],
+    );
+
+    $handled = 0;
+
+    $request = Request::create('/payments', 'GET');
+    $request->headers->set('Idempotency-Key', 'payment-123');
+
+    $manager->handle($request, function () use (&$handled): Response {
+        $handled++;
+
+        return new Response('first');
+    });
+
+    $manager->handle($request, function () use (&$handled): Response {
+        $handled++;
+
+        return new Response('second');
+    });
+
+    expect($handled)->toBe(2);
+});
+
+it('throws a lock conflict exception when the lock cannot be acquired', function (): void {
+    $lock = new InMemoryIdempotencyLock;
+    $lock->acquire('payment-123');
+
+    $manager = new IdempotencyManager(
+        new InMemoryIdempotencyStore,
+        new Sha256RequestFingerprinter,
+        $lock,
+    );
+
+    expect(fn (): Response => $manager->handle(
+        idempotencyRequest('payment-123'),
+        fn (): Response => new Response('created', 201)
+    ))->toThrow(IdempotencyLockConflictException::class);
 });
 
 function idempotencyRequest(string $key, int $amount = 100): Request

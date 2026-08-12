@@ -62,6 +62,21 @@ it('rejects an empty idempotency key', function (): void {
         ->toThrow(InvalidArgumentException::class);
 });
 
+it('rejects an idempotency key exceeding the maximum length', function (): void {
+    $key = str_repeat('a', 256);
+
+    expect(fn (): IdempotencyKey => new IdempotencyKey($key))
+        ->toThrow(InvalidArgumentException::class);
+});
+
+it('accepts a custom maximum length', function (): void {
+    $key = str_repeat('a', 10);
+
+    expect((string) new IdempotencyKey($key, maxLength: 10))
+        ->toBe($key)
+        ->and(fn (): IdempotencyKey => new IdempotencyKey($key, maxLength: 9))->toThrow(InvalidArgumentException::class);
+});
+
 it(/**
  * @throws DateMalformedStringException
  */ 'can serialize and deserialize an idempotency record', function (): void {

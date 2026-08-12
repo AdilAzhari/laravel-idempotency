@@ -5,6 +5,7 @@ declare(strict_types=1);
 use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Http\Middleware\IdempotencyMiddleware;
 use AdilAzhari\LaravelIdempotency\IdempotencyManager;
+use AdilAzhari\LaravelIdempotency\LaravelIdempotencyServiceProvider;
 use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
 use Illuminate\Contracts\Routing\ResponseFactory;
 use Illuminate\Http\Response;
@@ -20,6 +21,20 @@ it('resolves the idempotency manager with the configured cache store', function 
 
     expect(app()->resolved(IdempotencyManager::class))
         ->toBeTrue();
+});
+
+it('resolves a fresh idempotency manager for every request instead of sharing lock state', function (): void {
+    expect(app(IdempotencyManager::class))
+        ->not->toBe(app(IdempotencyManager::class));
+});
+
+it('registers a publishable migrations group', function (): void {
+    $paths = LaravelIdempotencyServiceProvider::pathsToPublish(
+        LaravelIdempotencyServiceProvider::class,
+        'idempotency-migrations'
+    );
+
+    expect($paths)->not->toBeEmpty();
 });
 
 it('replays an idempotent route response', function (): void {
