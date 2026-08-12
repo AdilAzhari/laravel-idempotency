@@ -8,12 +8,12 @@ use Illuminate\Http\Request;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
-final class IdempotencyConflictException extends RuntimeException
+final class IdempotencyLockConflictException extends RuntimeException
 {
     public static function forKey(string $key): self
     {
         return new self(
-            sprintf('The idempotency key [%s] has already been used for another request.', $key)
+            sprintf('A request with the idempotency key [%s] is already being processed.', $key)
         );
     }
 
