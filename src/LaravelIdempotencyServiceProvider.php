@@ -15,13 +15,14 @@ use AdilAzhari\LaravelIdempotency\Stores\CacheIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\DatabaseIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\RedisIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
+use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyKey;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
-use Illuminate\Foundation\Http\Kernel;
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
 use RuntimeException;
@@ -118,7 +119,7 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
             },
         );
 
-        $this->app->singleton(
+        $this->app->bind(
             IdempotencyManager::class,
             static function (Container $app): IdempotencyManager {
                 /** @var ConfigRepository $config */
@@ -134,6 +135,21 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                     86400,
                 );
 
+                $methods = $config->get(
+                    'idempotency.methods',
+                    ['POST', 'PUT', 'PATCH', 'DELETE'],
+                );
+
+                $maxKeyLength = $config->get(
+                    'idempotency.key_max_length',
+                    IdempotencyKey::DEFAULT_MAX_LENGTH,
+                );
+
+                $replayHeader = $config->get(
+                    'idempotency.replay_header',
+                    'Idempotency-Replayed',
+                );
+
                 return new IdempotencyManager(
                     store: $app->make(IdempotencyStore::class),
                     fingerprinter: $app->make(RequestFingerprinter::class),
@@ -144,6 +160,18 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                     expiration: is_int($expiration)
                         ? $expiration
                         : 86400,
+                    methods: is_array($methods)
+                        ? array_values(array_map(
+                            mb_strtoupper(...),
+                            array_filter($methods, is_string(...)),
+                        ))
+                        : [],
+                    maxKeyLength: is_int($maxKeyLength)
+                        ? $maxKeyLength
+                        : IdempotencyKey::DEFAULT_MAX_LENGTH,
+                    replayHeader: is_string($replayHeader) && $replayHeader !== ''
+                        ? $replayHeader
+                        : null,
                 );
             },
         );
@@ -158,13 +186,17 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
             __DIR__.'/../config/idempotency.php' => config_path('idempotency.php'),
         ], 'idempotency-config');
 
+        $this->publishesMigrations([
+            __DIR__.'/../database/migrations' => database_path('migrations'),
+        ], 'idempotency-migrations');
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 PruneIdempotencyRecordsCommand::class,
             ]);
         }
 
-        $this->app->make(Kernel::class)
+        $this->app->make(Router::class)
             ->aliasMiddleware(
                 'idempotency',
                 IdempotencyMiddleware::class

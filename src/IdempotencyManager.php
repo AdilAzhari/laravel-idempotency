@@ -8,23 +8,29 @@ use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyConflictException;
+use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyLockConflictException;
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyKey;
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
 use Closure;
 use DateInterval;
 use DateTimeImmutable;
 use Illuminate\Http\Request;
-use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
 final readonly class IdempotencyManager
 {
+    /**
+     * @param  list<string>  $methods  HTTP methods the middleware applies to. Empty means all methods.
+     */
     public function __construct(
         private IdempotencyStore $store,
         private RequestFingerprinter $fingerprinter,
         private IdempotencyLock $lock,
         private string $header = 'Idempotency-Key',
         private int $expiration = 86400,
+        private array $methods = [],
+        private int $maxKeyLength = IdempotencyKey::DEFAULT_MAX_LENGTH,
+        private ?string $replayHeader = 'Idempotency-Replayed',
     ) {}
 
     /**
@@ -40,14 +46,16 @@ final readonly class IdempotencyManager
             return $next($request);
         }
 
-        $idempotencyKey = new IdempotencyKey($key);
+        if ($this->methods !== [] && ! in_array($request->method(), $this->methods, true)) {
+            return $next($request);
+        }
+
+        $idempotencyKey = new IdempotencyKey($key, $this->maxKeyLength);
 
         $fingerprint = $this->fingerprinter->fingerprint($request);
 
         if (! $this->lock->acquire($idempotencyKey->value)) {
-            throw new RuntimeException(
-                'Unable to acquire idempotency lock.'
-            );
+            throw IdempotencyLockConflictException::forKey($idempotencyKey->value);
         }
 
         try {
@@ -70,14 +78,24 @@ final readonly class IdempotencyManager
                     throw IdempotencyConflictException::forKey($idempotencyKey->value);
                 }
 
-                return new Response(
+                $replayed = new Response(
                     $stored->body,
                     $stored->status,
                     $stored->headers
                 );
+
+                if ($this->replayHeader !== null) {
+                    $replayed->headers->set($this->replayHeader, 'true');
+                }
+
+                return $replayed;
             }
 
             $response = $next($request);
+
+            if ($this->replayHeader !== null) {
+                $response->headers->set($this->replayHeader, 'false');
+            }
 
             $createdAt = new DateTimeImmutable;
 

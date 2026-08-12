@@ -10,7 +10,10 @@ use Illuminate\Contracts\Cache\LockProvider;
 
 final class CacheIdempotencyLock implements IdempotencyLock
 {
-    private ?Lock $lock = null;
+    /**
+     * @var array<string, Lock>
+     */
+    private array $locks = [];
 
     public function __construct(
         private readonly LockProvider $cache,
@@ -19,17 +22,29 @@ final class CacheIdempotencyLock implements IdempotencyLock
 
     public function acquire(string $key): bool
     {
-        $this->lock = $this->cache->lock(
+        $lock = $this->cache->lock(
             $this->lockKey($key),
             $this->seconds
         );
 
-        return (bool) $this->lock->get();
+        if (! $lock->get()) {
+            return false;
+        }
+
+        $this->locks[$key] = $lock;
+
+        return true;
     }
 
     public function release(string $key): void
     {
-        $this->lock?->release();
+        if (! isset($this->locks[$key])) {
+            return;
+        }
+
+        $this->locks[$key]->release();
+
+        unset($this->locks[$key]);
     }
 
     private function lockKey(string $key): string
