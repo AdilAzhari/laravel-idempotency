@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Job-level idempotency via `JobIdempotencyMiddleware` (`new JobIdempotencyMiddleware(key: ...)` in a job's `middleware()` method), protecting queued job side effects from duplication on retry-after-partial-success and at-least-once queue redelivery — cases Laravel's built-in `ShouldBeUnique`/`WithoutOverlapping` don't cover, since those only prevent concurrent duplicate dispatch
+- `JobIdempotencyStore` contract with array, cache, redis, and database drivers, matching the existing HTTP store drivers
+- `IdempotencyContext::current()` bridges an HTTP request's idempotency key into jobs it dispatches, so both layers can share one identity
 - `Idempotency-Replayed` response header indicating whether a response was replayed or freshly executed (configurable via `replay_header`)
 - Configurable HTTP method scope for the middleware, defaulting to `POST`, `PUT`, `PATCH`, `DELETE` (`methods` config)
 - Idempotency key length validation (`key_max_length` config), rejected with a `400 Bad Request`
