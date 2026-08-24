@@ -65,6 +65,42 @@ Possible implementations:
 
 ---
 
+# Custom Job Fingerprinting
+
+```php
+use App\Support\CustomJobFingerprinter;
+use AdilAzhari\LaravelIdempotency\Contracts\JobFingerprinter;
+
+$this->app->bind(
+    JobFingerprinter::class,
+    CustomJobFingerprinter::class,
+);
+```
+
+Possible use cases:
+
+- Ignore volatile job properties (e.g. a correlation ID)
+- Fingerprint based on a subset of the job's payload
+- Different hashing algorithm
+
+---
+
+# Custom Job Storage
+
+```php
+use App\Storage\DatabaseJobStore;
+use AdilAzhari\LaravelIdempotency\Contracts\JobIdempotencyStore;
+
+$this->app->bind(
+    JobIdempotencyStore::class,
+    DatabaseJobStore::class,
+);
+```
+
+Job storage is a separate contract from HTTP storage — a job has no response to persist, only a record that it has already run. `IdempotencyLock` is shared between both.
+
+---
+
 # Writing Custom Components
 
 Every extension point follows the same principles.
