@@ -114,4 +114,24 @@ return [
     */
 
     'expiration' => 86400,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Job Idempotency
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for JobIdempotencyMiddleware, which protects queued job
+    | side effects the same way the HTTP middleware protects responses.
+    | The driver connection details in "stores" above are shared with
+    | jobs; only the active driver and record lifetime differ here.
+    |
+    */
+
+    'jobs' => [
+
+        'driver' => env('IDEMPOTENCY_JOB_STORE', env('IDEMPOTENCY_STORE', 'cache')),
+
+        'expiration' => env('IDEMPOTENCY_JOB_EXPIRATION', 86400),
+
+    ],
 ];

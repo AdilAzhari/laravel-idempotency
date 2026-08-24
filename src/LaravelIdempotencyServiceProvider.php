@@ -7,13 +7,21 @@ namespace AdilAzhari\LaravelIdempotency;
 use AdilAzhari\LaravelIdempotency\Commands\PruneIdempotencyRecordsCommand;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Contracts\JobFingerprinter;
+use AdilAzhari\LaravelIdempotency\Contracts\JobIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Http\Middleware\IdempotencyMiddleware;
 use AdilAzhari\LaravelIdempotency\Locks\CacheIdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Stores\ArrayIdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Stores\ArrayJobIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\CacheIdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Stores\CacheJobIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\DatabaseIdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Stores\DatabaseJobIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\RedisIdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Stores\RedisJobIdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Support\IdempotencyContext;
+use AdilAzhari\LaravelIdempotency\Support\Sha256JobFingerprinter;
 use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyKey;
 use Illuminate\Contracts\Cache\LockProvider;
@@ -154,6 +162,7 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                     store: $app->make(IdempotencyStore::class),
                     fingerprinter: $app->make(RequestFingerprinter::class),
                     lock: $app->make(IdempotencyLock::class),
+                    context: $app->make(IdempotencyContext::class),
                     header: is_string($header)
                         ? $header
                         : 'Idempotency-Key',
@@ -172,6 +181,92 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                     replayHeader: is_string($replayHeader) && $replayHeader !== ''
                         ? $replayHeader
                         : null,
+                );
+            },
+        );
+
+        $this->app->scoped(IdempotencyContext::class);
+
+        $this->app->bind(
+            JobFingerprinter::class,
+            Sha256JobFingerprinter::class,
+        );
+
+        $this->app->singleton(
+            JobIdempotencyStore::class,
+            static function (Container $app): JobIdempotencyStore {
+
+                /** @var ConfigRepository $config */
+                $config = $app->make(ConfigRepository::class);
+
+                /** @var string $driver */
+                $driver = $config->get(
+                    'idempotency.jobs.driver',
+                    'cache'
+                );
+
+                /** @var array<string, mixed> $store */
+                $store = $config->get(
+                    'idempotency.stores.'.$driver,
+                    []
+                );
+
+                return match ($store['driver'] ?? null) {
+
+                    'array' => new ArrayJobIdempotencyStore,
+
+                    'cache' => new CacheJobIdempotencyStore(
+                        $app->make(Repository::class),
+                    ),
+
+                    'redis' => new RedisJobIdempotencyStore(
+                        redis: $app->make(RedisFactory::class),
+                        connection: is_string($store['connection'] ?? null)
+                            ? $store['connection']
+                            : 'default',
+                        prefix: is_string($store['prefix'] ?? null)
+                            ? $store['prefix']
+                            : 'job-idempotency:',
+                    ),
+
+                    'database' => new DatabaseJobIdempotencyStore,
+
+                    default => throw new InvalidArgumentException(
+                        sprintf(
+                            'Unsupported idempotency driver [%s].',
+                            $driver,
+                        )
+                    ),
+                };
+            }
+        );
+
+        $this->app->bind(
+            JobIdempotencyManager::class,
+            static function (Container $app): JobIdempotencyManager {
+                /** @var ConfigRepository $config */
+                $config = $app->make(ConfigRepository::class);
+
+                $expiration = $config->get(
+                    'idempotency.jobs.expiration',
+                    86400,
+                );
+
+                $maxKeyLength = $config->get(
+                    'idempotency.key_max_length',
+                    IdempotencyKey::DEFAULT_MAX_LENGTH,
+                );
+
+                return new JobIdempotencyManager(
+                    store: $app->make(JobIdempotencyStore::class),
+                    fingerprinter: $app->make(JobFingerprinter::class),
+                    lock: $app->make(IdempotencyLock::class),
+                    expiration: is_int($expiration)
+                        ? $expiration
+                        : 86400,
+                    maxKeyLength: is_int($maxKeyLength)
+                        ? $maxKeyLength
+                        : IdempotencyKey::DEFAULT_MAX_LENGTH,
                 );
             },
         );
