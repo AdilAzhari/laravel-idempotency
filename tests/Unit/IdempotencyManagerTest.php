@@ -5,6 +5,7 @@ declare(strict_types=1);
 use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyConflictException;
 use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyLockConflictException;
 use AdilAzhari\LaravelIdempotency\IdempotencyManager;
+use AdilAzhari\LaravelIdempotency\Support\IdempotencyContext;
 use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Tests\Fakes\InMemoryIdempotencyLock;
 use AdilAzhari\LaravelIdempotency\Tests\Fakes\InMemoryIdempotencyStore;
@@ -231,6 +232,42 @@ it('throws a lock conflict exception when the lock cannot be acquired', function
         idempotencyRequest('payment-123'),
         fn (): Response => new Response('created', 201)
     ))->toThrow(IdempotencyLockConflictException::class);
+});
+
+it('records the resolved idempotency key on the shared context', function (): void {
+    $context = new IdempotencyContext;
+
+    $manager = new IdempotencyManager(
+        new InMemoryIdempotencyStore,
+        new Sha256RequestFingerprinter,
+        new InMemoryIdempotencyLock,
+        $context,
+    );
+
+    $manager->handle(
+        idempotencyRequest('payment-123'),
+        fn (): Response => new Response('created', 201)
+    );
+
+    expect($context->get())->toBe('payment-123');
+});
+
+it('leaves the shared context untouched when no idempotency key is present', function (): void {
+    $context = new IdempotencyContext;
+
+    $manager = new IdempotencyManager(
+        new InMemoryIdempotencyStore,
+        new Sha256RequestFingerprinter,
+        new InMemoryIdempotencyLock,
+        $context,
+    );
+
+    $manager->handle(
+        Request::create('/payments', 'POST'),
+        fn (): Response => new Response('processed')
+    );
+
+    expect($context->get())->toBeNull();
 });
 
 function idempotencyRequest(string $key, int $amount = 100): Request
