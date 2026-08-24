@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Laravel Idempotency logo">
+  <title>Laravel Idempotency</title>
+  <circle cx="256" cy="256" r="170" fill="none" stroke="#DC2626" stroke-width="32" stroke-linecap="round" stroke-dasharray="430 104" stroke-dashoffset="120" />
+  <polygon points="256,161 338.27,208.5 338.27,303.5 256,351 173.73,303.5 173.73,208.5" fill="#DC2626" />
+</svg>

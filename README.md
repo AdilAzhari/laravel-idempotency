@@ -1,9 +1,9 @@
 <p align="center">
-    <img src="assets/banner.jpg" alt="Laravel Idempotency">
+    <img src="assets/banner.svg" alt="Laravel Idempotency">
 </p>
 
 <p align="center">
-    <img src="assets/logo.png" width="120" alt="Laravel Idempotency Logo">
+    <img src="assets/logo.svg" width="120" alt="Laravel Idempotency Logo">
 </p>
 
 <h1 align="center">Laravel Idempotency</h1>
@@ -78,6 +78,8 @@ Laravel Idempotency guarantees that the same logical operation executes only onc
 # Features
 
 - HTTP idempotency middleware
+- Job idempotency middleware, protecting queued job side effects from retries and redelivery
+- HTTP-to-job idempotency key propagation via `IdempotencyContext`
 - Atomic request locking
 - Automatic response replay
 - SHA-256 request fingerprinting
@@ -247,6 +249,59 @@ If the same key is reused for different request data, an `IdempotencyConflictExc
 
 All three exceptions are self-rendering, so no custom exception handler registration is required.
 
+`JobIdempotencyMiddleware` throws the equivalent plain exceptions for jobs — `JobIdempotencyConflictException` and `JobIdempotencyLockConflictException` — which are not self-rendering, since a queue worker has no HTTP response to render.
+
+---
+
+# Jobs
+
+Idempotency isn't only an HTTP concern. Laravel's own `ShouldBeUnique`/`WithoutOverlapping` prevent *concurrent duplicate dispatch*, but they don't protect against a job's side effects running twice after a retry-following-partial-success, an at-least-once queue redelivery, or two separate dispatches of the same logical action (e.g. a webhook retried by its sender).
+
+`JobIdempotencyMiddleware` protects a job's side effects the same way `IdempotencyMiddleware` protects HTTP responses: a stable key, atomic locking, and a persisted record so a duplicate execution is skipped rather than re-run.
+
+```php
+use AdilAzhari\LaravelIdempotency\Queue\Middleware\JobIdempotencyMiddleware;
+
+final class ChargeCustomer implements ShouldQueue
+{
+    public function __construct(
+        private readonly Order $order,
+    ) {}
+
+    public function middleware(): array
+    {
+        return [new JobIdempotencyMiddleware(key: $this->order->id)];
+    }
+
+    public function handle(): void
+    {
+        // Charge the customer. If this job is retried or redelivered with
+        // the same key and the same payload, handle() will not run again.
+    }
+}
+```
+
+If the same key is later reused for a job with a different payload, a `JobIdempotencyConflictException` is thrown — the job-side equivalent of `IdempotencyConflictException`.
+
+---
+
+## Connecting an HTTP Request to the Job It Dispatches
+
+`IdempotencyContext` lets a job adopt the idempotency key of the HTTP request that triggered it, so one key protects both layers.
+
+```php
+use AdilAzhari\LaravelIdempotency\Support\IdempotencyContext;
+
+public function middleware(): array
+{
+    return [new JobIdempotencyMiddleware(
+        key: IdempotencyContext::current() ?? $this->order->id
+    )];
+}
+```
+
+`IdempotencyContext::current()` returns the key from the current HTTP request when one was processed by `IdempotencyMiddleware`, or `null` outside of a request — falling back to your own key is always recommended.
+
 ---
 
 # Storage Drivers
@@ -313,6 +368,11 @@ return [
 
     'expiration' => 86400,
 
+    'jobs' => [
+        'driver' => env('IDEMPOTENCY_JOB_STORE', env('IDEMPOTENCY_STORE', 'cache')),
+        'expiration' => env('IDEMPOTENCY_JOB_EXPIRATION', 86400),
+    ],
+
 ];
 ```
 
@@ -325,6 +385,8 @@ return [
 | `replay_header` | Response header set to `true`/`false` indicating a replayed vs. fresh response. Set to `null` to disable |
 | `lock.seconds` | Maximum lock duration |
 | `expiration` | Lifetime of stored responses |
+| `jobs.driver` | Storage driver used by `JobIdempotencyMiddleware`. Defaults to the same driver as `driver` |
+| `jobs.expiration` | Lifetime of stored job records |
 
 The lock duration should comfortably exceed the execution time of your protected endpoints.
 ---
@@ -561,7 +623,10 @@ Additional documentation is available in the `docs` directory.
 - ✅ Database storage driver
 - ✅ Configurable storage drivers
 - ✅ Database pruning command
+- ✅ Job idempotency middleware
+- ✅ HTTP-to-job idempotency key propagation
 - 🚧 Additional storage adapters
+- 🚧 Step-level checkpointing within a job (resumable partial execution)
 
 ---
 

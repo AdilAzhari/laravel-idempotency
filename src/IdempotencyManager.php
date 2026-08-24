@@ -9,6 +9,7 @@ use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyConflictException;
 use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyLockConflictException;
+use AdilAzhari\LaravelIdempotency\Support\IdempotencyContext;
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyKey;
 use AdilAzhari\LaravelIdempotency\ValueObjects\IdempotencyRecord;
 use Closure;
@@ -26,6 +27,7 @@ final readonly class IdempotencyManager
         private IdempotencyStore $store,
         private RequestFingerprinter $fingerprinter,
         private IdempotencyLock $lock,
+        private IdempotencyContext $context = new IdempotencyContext,
         private string $header = 'Idempotency-Key',
         private int $expiration = 86400,
         private array $methods = [],
@@ -51,6 +53,8 @@ final readonly class IdempotencyManager
         }
 
         $idempotencyKey = new IdempotencyKey($key, $this->maxKeyLength);
+
+        $this->context->set($idempotencyKey->value);
 
         $fingerprint = $this->fingerprinter->fingerprint($request);
 
