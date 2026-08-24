@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320" role="img" aria-label="Laravel Idempotency banner">
+  <title>Laravel Idempotency</title>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14161B" />
+      <stop offset="100%" stop-color="#1E2028" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#DC2626" stop-opacity="0.20" />
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="320" fill="url(#bg)" />
+
+  <circle cx="170" cy="160" r="140" fill="url(#glow)" />
+
+  <circle cx="170" cy="160" r="80" fill="none" stroke="#DC2626" stroke-width="15" stroke-linecap="round" stroke-dasharray="202.5 49" stroke-dashoffset="60" />
+  <polygon points="170,115 208.97,137.5 208.97,182.5 170,205 131.03,182.5 131.03,137.5" fill="#DC2626" />
+
+  <line x1="290" y1="80" x2="290" y2="240" stroke="#3A3D46" stroke-width="2" />
+
+  <text x="330" y="150" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="64" font-weight="800" fill="#F8FAFC">laravel-</text>
+  <text x="330" y="218" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="64" font-weight="800" fill="#F8FAFC">idempotency</text>
+  <text x="330" y="260" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" font-weight="400" fill="#94A3B8">Reliable request deduplication for Laravel applications</text>
+</svg>
