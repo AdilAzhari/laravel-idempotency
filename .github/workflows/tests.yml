@@ -48,4 +48,9 @@ jobs:
       run: composer update --${{ matrix.dependency-version }} --no-interaction --prefer-dist
 
     - name: Unit Tests
+      if: runner.os != 'Windows'
       run: composer test:unit
+
+    - name: Unit Tests (Windows)
+      if: runner.os == 'Windows'
+      run: vendor/bin/pest --coverage
