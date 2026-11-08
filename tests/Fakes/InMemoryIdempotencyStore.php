@@ -29,4 +29,12 @@ final class InMemoryIdempotencyStore implements IdempotencyStore
     {
         unset($this->records[$key]);
     }
+
+    /**
+     * @return list<string>
+     */
+    public function keys(): array
+    {
+        return array_keys($this->records);
+    }
 }

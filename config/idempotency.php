@@ -117,6 +117,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Key Scope
+    |--------------------------------------------------------------------------
+    |
+    | Idempotency keys are chosen by clients, so two clients can send the same
+    | key. Scoping stores each key in its owner's namespace, so one client's
+    | response is never replayed to another.
+    |
+    | "user"  scopes keys to the authenticated user (unauthenticated requests
+    |         stay unscoped).
+    | null    disables scoping: keys are global, as in v1.0.
+    | A class implementing IdempotencyScopeResolver for a custom scope, such
+    | as a tenant or an API client.
+    |
+    */
+
+    'scope' => 'user',
+
+    /*
+    |--------------------------------------------------------------------------
     | Job Idempotency
     |--------------------------------------------------------------------------
     |

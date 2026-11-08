@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Per-client key scoping (`scope` config). Keys are stored in their owner's namespace, so two clients that send the same `Idempotency-Key` never see each other's stored response. `"user"` scopes by authenticated user (model class + id), `null` keeps keys global, and any class implementing the new `IdempotencyScopeResolver` contract can scope by tenant, API client, or anything else
+
 - Job-level idempotency via `JobIdempotencyMiddleware` (`new JobIdempotencyMiddleware(key: ...)` in a job's `middleware()` method), protecting queued job side effects from duplication on retry-after-partial-success and at-least-once queue redelivery — cases Laravel's built-in `ShouldBeUnique`/`WithoutOverlapping` don't cover, since those only prevent concurrent duplicate dispatch
 - `JobIdempotencyStore` contract with array, cache, redis, and database drivers, matching the existing HTTP store drivers
 - `IdempotencyContext::current()` bridges an HTTP request's idempotency key into jobs it dispatches, so both layers can share one identity
@@ -13,6 +15,10 @@ All notable changes to this project will be documented in this file.
 - Configurable HTTP method scope for the middleware, defaulting to `POST`, `PUT`, `PATCH`, `DELETE` (`methods` config)
 - Idempotency key length validation (`key_max_length` config), rejected with a `400 Bad Request`
 - `idempotency-migrations` publish group, matching the installation instructions in the README
+
+### Changed
+
+- **Keys are now scoped to the authenticated user by default** (`'scope' => 'user'`). Previously a key was global, so a client reusing another client's key could be replayed that client's response. Records stored before upgrading are not found under the scoped key, so a retry that straddles the upgrade executes once more. Set `'scope' => null` to keep v1.0 behaviour
 
 ### Fixed
 
