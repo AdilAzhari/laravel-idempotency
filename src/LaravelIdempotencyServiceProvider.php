@@ -6,6 +6,7 @@ namespace AdilAzhari\LaravelIdempotency;
 
 use AdilAzhari\LaravelIdempotency\Commands\PruneIdempotencyRecordsCommand;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyLock;
+use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyScopeResolver;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Contracts\JobFingerprinter;
 use AdilAzhari\LaravelIdempotency\Contracts\JobIdempotencyStore;
@@ -20,6 +21,7 @@ use AdilAzhari\LaravelIdempotency\Stores\DatabaseIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\DatabaseJobIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\RedisIdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Stores\RedisJobIdempotencyStore;
+use AdilAzhari\LaravelIdempotency\Support\AuthenticatedUserScopeResolver;
 use AdilAzhari\LaravelIdempotency\Support\IdempotencyContext;
 use AdilAzhari\LaravelIdempotency\Support\Sha256JobFingerprinter;
 use AdilAzhari\LaravelIdempotency\Support\Sha256RequestFingerprinter;
@@ -158,6 +160,11 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                     'Idempotency-Replayed',
                 );
 
+                $scope = $config->get(
+                    'idempotency.scope',
+                    'user',
+                );
+
                 return new IdempotencyManager(
                     store: $app->make(IdempotencyStore::class),
                     fingerprinter: $app->make(RequestFingerprinter::class),
@@ -181,6 +188,7 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                     replayHeader: is_string($replayHeader) && $replayHeader !== ''
                         ? $replayHeader
                         : null,
+                    scope: self::resolveScope($app, $scope),
                 );
             },
         );
@@ -296,5 +304,35 @@ final class LaravelIdempotencyServiceProvider extends ServiceProvider
                 'idempotency',
                 IdempotencyMiddleware::class
             );
+    }
+
+    /**
+     * Turns the "scope" config value into a resolver: "user", null, or a resolver class.
+     */
+    private static function resolveScope(Container $app, mixed $scope): ?IdempotencyScopeResolver
+    {
+        if (in_array($scope, [null, '', false], true)) {
+            return null;
+        }
+
+        if ($scope === 'user') {
+            return new AuthenticatedUserScopeResolver;
+        }
+
+        if (is_string($scope) && is_subclass_of($scope, IdempotencyScopeResolver::class)) {
+            $resolver = $app->make($scope);
+
+            if ($resolver instanceof IdempotencyScopeResolver) {
+                return $resolver;
+            }
+        }
+
+        throw new InvalidArgumentException(
+            sprintf(
+                'Unsupported idempotency scope [%s]. Use "user", null, or a class implementing %s.',
+                is_scalar($scope) ? (string) $scope : get_debug_type($scope),
+                IdempotencyScopeResolver::class,
+            )
+        );
     }
 }
