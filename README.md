@@ -14,13 +14,13 @@
 
 <p align="center">
 
-[![Tests](https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml/badge.svg)](https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml)
+[![Tests](https://github.com/AdilAzhariOmsan/laravel-idempotency/actions/workflows/tests.yml/badge.svg)](https://github.com/AdilAzhariOmsan/laravel-idempotency/actions/workflows/tests.yml)
 
 ![PHP](https://img.shields.io/badge/PHP-8.5+-777BB4)
 
 ![Laravel](https://img.shields.io/badge/Laravel-13.x-FF2D20)
 
-![License](https://img.shields.io/github/license/AdilAzhari/laravel-idempotency)
+![License](https://img.shields.io/github/license/AdilAzhariOmsan/laravel-idempotency)
 
 </p>
 

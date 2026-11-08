@@ -1,7 +1,7 @@
 {
     "name": "adilazhari/laravel-idempotency",
     "description": "A Laravel package providing idempotent request handling.",
-    "homepage": "https://github.com/AdilAzhari/laravel-idempotency",
+    "homepage": "https://github.com/AdilAzhariOmsan/laravel-idempotency",
     "keywords": [
         "laravel",
         "idempotency",
