@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $expires_at
  */
-#[Fillable('key', 'fingerprint', 'job_class', 'expires_at')]
+#[Fillable('key', 'fingerprint', 'job_class', 'created_at', 'expires_at')]
 final class JobIdempotencyRecord extends Model
 {
     /**

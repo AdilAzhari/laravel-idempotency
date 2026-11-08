@@ -145,7 +145,7 @@ it('releases the lock when the endpoint throws', function (): void {
     );
     $request = idempotencyRequest('payment-123');
 
-    expect(fn (): Response => $manager->handle($request, fn () => throw new RuntimeException('Failed')))
+    expect(fn (): Response => $manager->handle($request, fn (): never => throw new RuntimeException('Failed')))
         ->toThrow(RuntimeException::class, 'Failed');
 
     $response = $manager->handle($request, fn (): Response => new Response('processed'));

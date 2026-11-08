@@ -14,13 +14,13 @@
 
 <p align="center">
 
-[![Tests](https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml/badge.svg)](https://github.com/AdilAzhari/laravel-idempotency/actions/workflows/tests.yml)
+[![Tests](https://github.com/AdilAzhariOmsan/laravel-idempotency/actions/workflows/tests.yml/badge.svg)](https://github.com/AdilAzhariOmsan/laravel-idempotency/actions/workflows/tests.yml)
 
 ![PHP](https://img.shields.io/badge/PHP-8.5+-777BB4)
 
 ![Laravel](https://img.shields.io/badge/Laravel-13.x-FF2D20)
 
-![License](https://img.shields.io/github/license/AdilAzhari/laravel-idempotency)
+![License](https://img.shields.io/github/license/AdilAzhariOmsan/laravel-idempotency)
 
 </p>
 
@@ -85,6 +85,7 @@ Laravel Idempotency guarantees that the same logical operation executes only onc
 - SHA-256 request fingerprinting
 - Configurable response expiration
 - Configurable HTTP method scope (skips safe methods like `GET` by default)
+- Per-user key scoping, so one client's response is never replayed to another
 - `Idempotency-Replayed` response header on every protected response
 - Idempotency key length validation
 - Multiple storage drivers
@@ -394,6 +395,34 @@ The lock duration should comfortably exceed the execution time of your protected
 # Extending
 
 Laravel Idempotency is built around a small set of contracts, allowing individual components to be replaced without modifying the package.
+
+## Key Scoping
+
+Idempotency keys are chosen by clients, so two clients can send the same key. By default each key is stored in the authenticated user's namespace, so one user's stored response is never replayed to another. Unauthenticated requests stay unscoped.
+
+```php
+// config/idempotency.php
+'scope' => 'user',   // default: scope by authenticated user
+'scope' => null,     // global keys (v1.0 behaviour)
+'scope' => TenantScopeResolver::class, // your own resolver
+```
+
+A custom resolver implements `IdempotencyScopeResolver` and returns the scope for a request, or `null` to leave it unscoped:
+
+```php
+use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyScopeResolver;
+use Illuminate\Http\Request;
+
+final class TenantScopeResolver implements IdempotencyScopeResolver
+{
+    public function resolve(Request $request): ?string
+    {
+        return $request->header('X-Tenant-Id');
+    }
+}
+```
+
+---
 
 ## Custom Request Fingerprinting
 

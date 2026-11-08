@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-08
+
 ### Added
+
+- Per-client key scoping (`scope` config). Keys are stored in their owner's namespace, so two clients that send the same `Idempotency-Key` never see each other's stored response. `"user"` scopes by authenticated user (model class + id), `null` keeps keys global, and any class implementing the new `IdempotencyScopeResolver` contract can scope by tenant, API client, or anything else
 
 - Job-level idempotency via `JobIdempotencyMiddleware` (`new JobIdempotencyMiddleware(key: ...)` in a job's `middleware()` method), protecting queued job side effects from duplication on retry-after-partial-success and at-least-once queue redelivery — cases Laravel's built-in `ShouldBeUnique`/`WithoutOverlapping` don't cover, since those only prevent concurrent duplicate dispatch
 - `JobIdempotencyStore` contract with array, cache, redis, and database drivers, matching the existing HTTP store drivers
@@ -14,8 +18,13 @@ All notable changes to this project will be documented in this file.
 - Idempotency key length validation (`key_max_length` config), rejected with a `400 Bad Request`
 - `idempotency-migrations` publish group, matching the installation instructions in the README
 
+### Changed
+
+- **Keys are now scoped to the authenticated user by default** (`'scope' => 'user'`). Previously a key was global, so a client reusing another client's key could be replayed that client's response. Records stored before upgrading are not found under the scoped key, so a retry that straddles the upgrade executes once more. Set `'scope' => null` to keep v1.0 behaviour
+
 ### Fixed
 
+- The database stores now save a record's own `created_at` instead of the time it was written. `created_at` wasn't fillable, so it was silently dropped and Eloquent set it to "now"
 - `IdempotencyManager` is no longer resolved as a singleton, preventing a shared, mutable lock instance from leaking lock state between concurrent requests handled by the same worker (e.g. under Octane)
 - `CacheIdempotencyLock` now tracks each acquired lock independently instead of a single mutable slot, so releasing one key can no longer release a different key's lock
 - `IdempotencyConflictException` now renders as a `409 Conflict` JSON response instead of surfacing as an uncaught exception

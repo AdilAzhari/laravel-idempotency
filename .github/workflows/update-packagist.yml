@@ -15,5 +15,5 @@ jobs:
         run: |
           curl -X POST \
             -H "Content-Type: application/json" \
-            -d '{"repository": {"github": "https://github.com/AdilAzhari/laravel-idempotency"}}' \
+            -d '{"repository": {"github": "https://github.com/AdilAzhariOmsan/laravel-idempotency"}}' \
             https://packagist.org/api/update-package?username=AdilAzhari\&token=${{ secrets.PACKAGIST_TOKEN }}

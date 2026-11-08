@@ -95,7 +95,7 @@ it('releases the lock when the job throws', function (): void {
 
     $job = new FakeJob(100);
 
-    expect(fn () => $manager->handle($job, 'job-123', fn () => throw new RuntimeException('Failed')))
+    expect(fn () => $manager->handle($job, 'job-123', fn (): never => throw new RuntimeException('Failed')))
         ->toThrow(RuntimeException::class, 'Failed');
 
     $handled = 0;

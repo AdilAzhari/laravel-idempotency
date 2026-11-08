@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $expires_at
  */
-#[Fillable('key', 'fingerprint', 'status', 'headers', 'body', 'expires_at')]
+#[Fillable('key', 'fingerprint', 'status', 'headers', 'body', 'created_at', 'expires_at')]
 final class IdempotencyRecord extends Model
 {
     /**

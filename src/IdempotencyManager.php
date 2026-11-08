@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AdilAzhari\LaravelIdempotency;
 
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyLock;
+use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyScopeResolver;
 use AdilAzhari\LaravelIdempotency\Contracts\IdempotencyStore;
 use AdilAzhari\LaravelIdempotency\Contracts\RequestFingerprinter;
 use AdilAzhari\LaravelIdempotency\Exceptions\IdempotencyConflictException;
@@ -33,6 +34,7 @@ final readonly class IdempotencyManager
         private array $methods = [],
         private int $maxKeyLength = IdempotencyKey::DEFAULT_MAX_LENGTH,
         private ?string $replayHeader = 'Idempotency-Replayed',
+        private ?IdempotencyScopeResolver $scope = null,
     ) {}
 
     /**
@@ -58,7 +60,9 @@ final readonly class IdempotencyManager
 
         $fingerprint = $this->fingerprinter->fingerprint($request);
 
-        if (! $this->lock->acquire($idempotencyKey->value)) {
+        $storageKey = $this->storageKey($request, $idempotencyKey);
+
+        if (! $this->lock->acquire($storageKey)) {
             throw IdempotencyLockConflictException::forKey($idempotencyKey->value);
         }
 
@@ -69,10 +73,10 @@ final readonly class IdempotencyManager
              * Another request might have completed while
              * this request was waiting.
              */
-            $stored = $this->store->find($idempotencyKey->value);
+            $stored = $this->store->find($storageKey);
 
             if ($stored?->isExpired()) {
-                $this->store->forget($idempotencyKey->value);
+                $this->store->forget($storageKey);
                 $stored = null;
             }
 
@@ -104,7 +108,7 @@ final readonly class IdempotencyManager
             $createdAt = new DateTimeImmutable;
 
             $record = new IdempotencyRecord(
-                key: $idempotencyKey->value,
+                key: $storageKey,
                 fingerprint: $fingerprint,
                 status: $response->getStatusCode(),
                 headers: $response->headers->all(),
@@ -123,8 +127,26 @@ final readonly class IdempotencyManager
 
         } finally {
 
-            $this->lock->release($idempotencyKey->value);
+            $this->lock->release($storageKey);
 
         }
+    }
+
+    /**
+     * The key used for locking and storage.
+     *
+     * Scoped keys are hashed together with their scope into a fixed-length key, so they
+     * always fit the store's key column however long the client's key is. Unscoped keys
+     * are stored as-is, exactly as before scoping existed.
+     */
+    private function storageKey(Request $request, IdempotencyKey $key): string
+    {
+        $scope = $this->scope?->resolve($request);
+
+        if ($scope === null || $scope === '') {
+            return $key->value;
+        }
+
+        return 'scoped:'.hash('sha256', $scope."\0".$key->value);
     }
 }
