@@ -1,13 +1,19 @@
 {
     "name": "adilazhari/laravel-idempotency",
-    "description": "A Laravel package providing idempotent request handling.",
+    "description": "Run Laravel HTTP requests and queued jobs once, however often they are retried: per-user idempotency keys, fingerprinting, response replay, and locking.",
     "homepage": "https://github.com/AdilAzhariOmsan/laravel-idempotency",
     "keywords": [
         "laravel",
         "idempotency",
+        "idempotency-key",
+        "idempotent",
         "api",
         "http",
-        "middleware"
+        "middleware",
+        "queues",
+        "jobs",
+        "payments",
+        "duplicate-requests"
     ],
     "license": "MIT",
     "authors": [
