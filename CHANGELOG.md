@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-08
+
 ### Added
 
 - Per-client key scoping (`scope` config). Keys are stored in their owner's namespace, so two clients that send the same `Idempotency-Key` never see each other's stored response. `"user"` scopes by authenticated user (model class + id), `null` keeps keys global, and any class implementing the new `IdempotencyScopeResolver` contract can scope by tenant, API client, or anything else
