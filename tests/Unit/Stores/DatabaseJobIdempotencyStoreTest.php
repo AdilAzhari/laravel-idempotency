@@ -90,3 +90,21 @@ it('updates an existing record with the same key', function (): void {
     expect($stored?->toArray())
         ->toEqual($updated->toArray());
 });
+
+it('keeps the created_at of the record instead of the time it was saved', function (): void {
+
+    $store = new DatabaseJobIdempotencyStore;
+
+    $record = new JobIdempotencyRecord(
+        key: 'created-earlier',
+        fingerprint: 'fingerprint',
+        jobClass: 'App\Jobs\ChargeCustomer',
+        createdAt: new DateTimeImmutable('-1 hour'),
+        expiresAt: new DateTimeImmutable('+1 day'),
+    );
+
+    $store->store($record);
+
+    expect($store->find($record->key)?->createdAt->getTimestamp())
+        ->toBe($record->createdAt->getTimestamp());
+});

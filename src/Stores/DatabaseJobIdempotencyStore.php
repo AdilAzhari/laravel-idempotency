@@ -41,6 +41,9 @@ final class DatabaseJobIdempotencyStore implements JobIdempotencyStore
                 [
                     'fingerprint' => $record->fingerprint,
                     'job_class' => $record->jobClass,
+                    'created_at' => CarbonImmutable::instance(
+                        $record->createdAt
+                    ),
                     'expires_at' => CarbonImmutable::instance(
                         $record->expiresAt
                     ),

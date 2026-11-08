@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- The database stores now save a record's own `created_at` instead of the time it was written. `created_at` wasn't fillable, so it was silently dropped and Eloquent set it to "now"
 - `IdempotencyManager` is no longer resolved as a singleton, preventing a shared, mutable lock instance from leaking lock state between concurrent requests handled by the same worker (e.g. under Octane)
 - `CacheIdempotencyLock` now tracks each acquired lock independently instead of a single mutable slot, so releasing one key can no longer release a different key's lock
 - `IdempotencyConflictException` now renders as a `409 Conflict` JSON response instead of surfacing as an uncaught exception

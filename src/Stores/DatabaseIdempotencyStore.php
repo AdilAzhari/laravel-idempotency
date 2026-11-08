@@ -45,6 +45,9 @@ final class DatabaseIdempotencyStore implements IdempotencyStore
                     'status' => $record->status,
                     'headers' => $record->headers,
                     'body' => $record->body,
+                    'created_at' => CarbonImmutable::instance(
+                        $record->createdAt
+                    ),
                     'expires_at' => CarbonImmutable::instance(
                         $record->expiresAt
                     ),
